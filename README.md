@@ -10,13 +10,18 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 
 - Tracks daily, weekly, monthly and yearly macro and micro nutrients, hydration, weight, and workouts.
 - Estimates daily macro and micro nutrient needs based off age, height, weight, and activity level. 
-- Online database for common nutrient data with bar code scanning ability to import nutritional information. 
+- Online database search for common nutrient data.
+- Scan food barcodes with your camera (or type the number) to lookup nutrient data.
 - Works offline-style from your home screen (Add to Home Screen)
 
 ## Privacy
 
-Your data is saved only in your own browser (localStorage).
-Nothing is sent to a server, and no account is needed.
+Your food and workout logs are saved only in your own browser (localStorage).
+No account is needed.
+
+When you scan or type a barcode, only that barcode number is sent to
+[Open Food Facts](https://world.openfoodfacts.org/), a free public food database,
+to look up nutrition info.
 
 ## Built with
 
