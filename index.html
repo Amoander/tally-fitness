@@ -399,6 +399,27 @@
 <button class="btn btn-primary" onClick="{{ addSel }}" style="min-height:48px;font-size:15px;"><i class="ph ph-check"></i>Add to {{ meal }}</button>
 </div>
 </sc-if>
+<sc-if value="{{ scanOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:2;background:var(--color-surface);border-radius:24px 24px 0 0;display:flex;flex-direction:column;gap:14px;padding:16px 18px 30px;overflow-y:auto;">
+<div style="display:flex;align-items:center;justify-content:space-between;"><div style="font-size:18px;font-weight:500;">Scan barcode</div><button class="btn btn-ghost btn-icon" onClick="{{ closeScan }}" style="color:var(--color-neutral-400);" aria-label="Close scanner"><i class="ph ph-x" style="font-size:18px;"></i></button></div>
+<sc-if value="{{ scanCam }}" hint-placeholder-val="{{ false }}">
+<div style="position:relative;height:300px;flex:none;border-radius:var(--radius-lg);overflow:hidden;background:var(--color-bg);">
+<video ref="{{ videoRef }}" playsInline="{{ true }}" muted="{{ true }}" autoPlay="{{ true }}" style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+<div style="position:absolute;left:10%;right:10%;top:30%;bottom:30%;border:1px solid var(--color-accent-300);border-radius:var(--radius-md);"></div>
+<div style="position:absolute;left:14%;right:14%;top:50%;height:2px;background:var(--color-accent);box-shadow:0 0 12px var(--color-accent);"></div>
+</div>
+</sc-if>
+<div style="font-size:13px;color:var(--color-neutral-300);text-wrap:pretty;">{{ scanMsg }}</div>
+<sc-if value="{{ scanRetry }}" hint-placeholder-val="{{ false }}">
+<button class="btn btn-secondary" onClick="{{ startScan }}" style="min-height:44px;"><i class="ph ph-camera"></i>Use camera</button>
+</sc-if>
+<div style="display:flex;flex-direction:column;gap:6px;">
+<div style="font-size:12px;color:var(--color-neutral-500);">Or type the barcode number</div>
+<div style="display:flex;gap:8px;"><input class="input" inputMode="numeric" placeholder="e.g. 5000159484695" value="{{ scanCode }}" onChange="{{ onScanCode }}" onKeyDown="{{ onScanKey }}" style="flex:1;min-width:0;min-height:44px;background:var(--color-bg);"><button class="btn btn-primary" onClick="{{ lookupTyped }}" style="min-height:44px;">Look up</button></div>
+</div>
+<div style="font-size:11px;color:var(--color-neutral-500);">Product data from Open Food Facts.</div>
+</div>
+</sc-if>
 </div>
 </sc-if>
 
@@ -567,6 +588,12 @@ const FOODS = [
   {id:'dchoc',name:'Dark chocolate 70%',serv:'20 g',kcal:120,c:9,p:1.6,f:8.5}
 ];
 const FMAP = Object.fromEntries(FOODS.map(f => [f.id, f]));
+const OFF_URL = 'https://world.openfoodfacts.org/api/v2/product/';
+const BD_URL = 'https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.min.js';
+const SCAN_FORMATS = ['ean_13','ean_8','upc_a','upc_e'];
+const rnd = n => Math.round(n * 10) / 10;
+// Scanned foods are saved in state.custom and registered into FMAP/MICRO so entries resolve like built-ins
+function registerFood(f) { FMAP[f.id] = f; MICRO[f.id] = f.m; }
 // Per serving: fiber g, sugar g, sat fat g, sodium mg, potassium mg, cholesterol mg, calcium mg, iron mg, vitamin C mg
 const MK = ['fib','sug','sat','na','k','chol','ca','fe','vc'];
 const MICRO = {
@@ -620,7 +647,8 @@ function initial() {
       {id:7,meal:'Snacks',food:'almond',s:1}
     ],
     exercises: [{id:8,name:'Running',min:30,kcal:330}],
-    water: 3, goal: 2100, preset: 0, goalWeight: 78, weights: WEIGHTS.slice(), sex: 'Female', age: 34, activity: 1
+    water: 3, goal: 2100, preset: 0, goalWeight: 78, weights: WEIGHTS.slice(), sex: 'Female', age: 34, activity: 1,
+    custom: []
   };
 }
 
@@ -631,12 +659,94 @@ class Component extends DCLogic {
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null
+      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:''
     });
+    if (!Array.isArray(this.state.custom)) this.state.custom = [];
+    this.state.custom.forEach(registerFood);
+    this.videoRef = React.createRef();
   }
   componentDidUpdate() {
-    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode} = this.state;
-    try { localStorage.setItem(KEY, JSON.stringify({entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode})); } catch (e) {}
+    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom} = this.state;
+    try { localStorage.setItem(KEY, JSON.stringify({entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom})); } catch (e) {}
+  }
+  componentWillUnmount() { this.stopCam(); }
+  async getDetector() {
+    if (this._det) return this._det;
+    let BD = window.BarcodeDetector;
+    try { if (BD && !(await BD.getSupportedFormats()).includes('ean_13')) BD = null; } catch (e) { BD = null; }
+    if (!BD) BD = (await import(BD_URL)).BarcodeDetector;
+    return this._det = new BD({formats: SCAN_FORMATS});
+  }
+  openScan() { this.setState({scan:'cam', scanMsg:'Starting camera…', scanCode:''}, () => this.startCam()); }
+  async startCam() {
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+      return this.setState({scan:'manual', scanMsg:'The camera isn’t available in this browser. Type the barcode number instead.'});
+    }
+    try {
+      this._stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}, audio:false});
+      const det = await this.getDetector();
+      const v = this.videoRef.current;
+      if (this.state.scan !== 'cam' || !v) return this.stopCam();
+      v.muted = true; v.setAttribute('playsinline', ''); v.srcObject = this._stream;
+      await v.play();
+      this.setState({scanMsg:'Hold the barcode inside the frame.'});
+      const tick = async () => {
+        if (!this._stream) return;
+        try {
+          if (v.readyState >= 2) {
+            const r = await det.detect(v);
+            if (r.length && this._stream) { this.stopCam(); return this.lookup(r[0].rawValue); }
+          }
+        } catch (e) {}
+        this._scanT = setTimeout(tick, 200);
+      };
+      tick();
+    } catch (e) {
+      this.stopCam();
+      const denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+      this.setState({scan:'manual', scanMsg: denied
+        ? 'Camera access is blocked. Allow the camera for this site in your browser settings, or type the barcode number.'
+        : 'The scanner couldn’t start. Type the barcode number instead.'});
+    }
+  }
+  stopCam() {
+    clearTimeout(this._scanT);
+    if (this._stream) this._stream.getTracks().forEach(t => t.stop());
+    this._stream = null;
+    const v = this.videoRef && this.videoRef.current;
+    if (v) v.srcObject = null;
+  }
+  closeScan() { this.stopCam(); this.setState({scan:null}); }
+  foundFood(id) { this.setState({scan:null, sel:id, servings:1, query:''}); this.flash('Found ' + FMAP[id].name); }
+  async lookup(raw) {
+    const code = String(raw || '').replace(/\D/g, '');
+    if (code.length < 8 || code.length > 14) return this.setState({scan:'manual', scanMsg:'Barcodes are 8 to 14 digits. Check the number and try again.'});
+    const id = 'bc' + code;
+    if (FMAP[id]) return this.foundFood(id);
+    this.setState({scan:'manual', scanMsg:`Looking up ${code}…`, scanCode: code});
+    try {
+      const r = await fetch(OFF_URL + code + '.json?fields=product_name,brands,serving_size,serving_quantity,nutriments');
+      const j = await r.json();
+      const p = j && j.status === 1 && j.product;
+      const n = (p && p.nutriments) || {};
+      let kcal100 = n['energy-kcal_100g'];
+      if (kcal100 == null && n.energy_100g != null) kcal100 = n.energy_100g / 4.184;
+      if (!p || kcal100 == null) return this.setState({scanMsg:`No nutrition data found for ${code}. Check the number or use search.`});
+      const sq = parseFloat(p.serving_quantity);
+      const q = sq > 0 ? sq : 100, k = q / 100;
+      const g = key => (+n[key + '_100g'] || 0) * k, mg = key => g(key) * 1000;
+      const brand = p.brands ? p.brands.split(',')[0].trim() : '';
+      const pname = (p.product_name || '').trim();
+      const name = (brand && !pname.toLowerCase().includes(brand.toLowerCase()) ? brand + ' ' : '') + pname || brand || `Product ${code}`;
+      const f = {id, code, name, serv: sq > 0 ? (p.serving_size || `${q} g`) : '100 g',
+        kcal: Math.round(kcal100 * k), c: rnd(g('carbohydrates')), p: rnd(g('proteins')), f: rnd(g('fat')),
+        m: [g('fiber'), g('sugars'), g('saturated-fat'), mg('sodium'), mg('potassium'), mg('cholesterol'), mg('calcium'), mg('iron'), mg('vitamin-c')].map(rnd)};
+      registerFood(f);
+      this.setState(st => ({custom: st.custom.filter(x => x.id !== id).concat(f)}));
+      this.foundFood(id);
+    } catch (e) {
+      this.setState({scanMsg:'Couldn’t reach the food database. Check your connection and try again.'});
+    }
   }
   flash(msg) {
     clearTimeout(this._t);
@@ -713,7 +823,8 @@ class Component extends DCLogic {
     const maxV = 2800;
 
     const q = st.query.trim().toLowerCase();
-    const results = (q ? FOODS.filter(f => f.name.toLowerCase().includes(q)) : RECENT.map(id => FMAP[id]));
+    const scanned = st.custom.slice().reverse();
+    const results = (q ? scanned.concat(FOODS).filter(f => f.name.toLowerCase().includes(q)) : scanned.slice(0, 3).concat(RECENT.map(id => FMAP[id])));
     const sel = st.sel ? FMAP[st.sel] : null;
     let selRing = [], selMacros = [], selV = null;
     if (sel) {
@@ -933,7 +1044,7 @@ class Component extends DCLogic {
       gwDown: () => this.stepGoalWeight(-1, lb),
       gwUp: () => this.stepGoalWeight(1, lb),
       resetDay: () => { this.setState({entries: [], exercises: [], water: 0}); this.flash('Diary cleared'); },
-      hasSheet: !!st.sheet, closeSheet: set({sheet:null, sel:null}),
+      hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null}); },
       openQuick: set({sheet:'quick'}), openExercise: set({sheet:'ex'}),
       openWeight: set({sheet:'weight', wDraft:null, wText:null}),
       sheetQuick: st.sheet === 'quick', sheetFood: st.sheet === 'food', sheetEx: st.sheet === 'ex', sheetWeight: st.sheet === 'weight',
@@ -945,7 +1056,12 @@ class Component extends DCLogic {
       ],
       foodList: !sel, foodDetail: !!sel, meal: st.meal, query: st.query,
       onQuery: e => this.setState({query: e.target.value}),
-      onScan: () => this.flash('Barcode scanner opens camera'),
+      onScan: () => this.openScan(), startScan: () => this.openScan(), closeScan: () => this.closeScan(),
+      scanOpen: !!st.scan, scanCam: st.scan === 'cam', scanMsg: st.scanMsg, scanCode: st.scanCode, videoRef: this.videoRef,
+      scanRetry: st.scan === 'manual' && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+      onScanCode: e => this.setState({scanCode: e.target.value}),
+      onScanKey: e => { if (e.key === 'Enter') this.lookup(st.scanCode); },
+      lookupTyped: () => this.lookup(st.scanCode),
       listTitle: q ? `${results.length} result${results.length === 1 ? '' : 's'}` : 'Recent',
       noResults: q && results.length === 0,
       foodResults: results.map(f => ({name:f.name, serv:f.serv, kcal:f.kcal,
