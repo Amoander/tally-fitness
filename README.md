@@ -13,11 +13,13 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 - Online database search for common nutrient data.
 - Scan food barcodes with your camera (or type the number) to lookup nutrient data.
 - Works offline-style from your home screen (Add to Home Screen)
+- Download a backup of your data and restore it on any device
 
 ## Privacy
 
 Your food and workout logs are saved only in your own browser (localStorage).
-No account is needed.
+No account is needed. Backup files contain your logs and are not encrypted, so store them
+somewhere private and don't share them.
 
 When you scan or type a barcode, only that barcode number is sent to
 [Open Food Facts](https://world.openfoodfacts.org/), a free public food database,
