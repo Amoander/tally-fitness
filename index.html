@@ -300,6 +300,14 @@
 <button class="btn btn-secondary btn-icon" onClick="{{ gwUp }}" style="width:44px;height:44px;border-radius:50%;"><i class="ph ph-plus"></i></button>
 </div>
 </div>
+<div class="card" style="padding:14px;gap:10px;box-shadow:var(--shadow-sm);">
+<div><div style="font-size:15px;font-weight:500;">Your data</div><div style="font-size:12px;color:var(--color-neutral-500);text-wrap:pretty;">Your data is saved only on this device. Save a backup file to keep it safe or move it to a new phone.</div></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+<button class="btn btn-primary" onClick="{{ downloadBackup }}" style="min-height:44px;"><i class="ph ph-download-simple"></i>Download backup</button>
+<button class="btn btn-secondary" onClick="{{ pickRestore }}" style="min-height:44px;"><i class="ph ph-upload-simple"></i>Restore from backup</button>
+</div>
+<input type="file" accept=".json,application/json" ref="{{ fileRef }}" onChange="{{ onRestoreFile }}" aria-label="Backup file" style="display:none;">
+</div>
 <button class="btn btn-secondary" onClick="{{ resetDay }}" style="min-height:44px;color:var(--color-neutral-300);"><i class="ph ph-arrow-counter-clockwise"></i>Reset today's diary</button>
 </div>
 </sc-if>
@@ -559,6 +567,19 @@
 </div>
 </sc-if>
 
+<sc-if value="{{ restoreOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:color-mix(in srgb,var(--color-bg) 70%,transparent);">
+<div class="card" role="alertdialog" aria-label="Replace data" style="padding:18px;gap:12px;box-shadow:var(--shadow-lg);max-width:320px;width:100%;">
+<div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:500;"><i class="ph ph-warning" style="font-size:20px;color:var(--color-accent);"></i>Replace your data?</div>
+<div style="font-size:13px;color:var(--color-neutral-300);text-wrap:pretty;">Restoring replaces everything currently in Tally on this device with the backup from {{ restoreDate }}. This can't be undone. If you want to keep what's here, download a backup first.</div>
+<div style="font-size:12px;color:var(--color-neutral-500);">{{ restoreSummary }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<button class="btn btn-primary" onClick="{{ confirmRestore }}" style="min-height:44px;">Replace my data</button>
+<button class="btn btn-ghost" onClick="{{ cancelRestore }}" style="min-height:44px;">Cancel</button>
+</div>
+</div>
+</div>
+</sc-if>
 <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
 <div style="position:absolute;left:50%;bottom:100px;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--color-neutral-800);box-shadow:var(--shadow-md);font-size:13px;white-space:nowrap;"><i class="ph-fill ph-check-circle" style="color:var(--color-accent);font-size:16px;"></i>{{ toast }}</div>
 </sc-if>
@@ -659,15 +680,64 @@ class Component extends DCLogic {
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:''
+      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null
     });
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
     this.videoRef = React.createRef();
+    this.fileRef = React.createRef();
+  }
+  savedData() {
+    let prev = null;
+    try { prev = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom} = this.state;
+    // Fields the app doesn't use are kept as-is, so nothing in saved data is ever dropped
+    return Object.assign({}, prev && typeof prev === 'object' ? prev : {}, {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom});
   }
   componentDidUpdate() {
-    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom} = this.state;
-    try { localStorage.setItem(KEY, JSON.stringify({entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom})); } catch (e) {}
+    if (this._restoring) return;
+    try { localStorage.setItem(KEY, JSON.stringify(this.savedData())); } catch (e) {}
+  }
+  async downloadBackup() {
+    const now = new Date();
+    const backup = {app: 'tally', backupVersion: 1, storageKey: KEY, exportedAt: now.toISOString(), data: this.savedData()};
+    const name = `tally-backup-${now.toISOString().slice(0, 10)}.json`;
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
+    const file = typeof File === 'function' ? new File([blob], name, {type: 'application/json'}) : null;
+    const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    if (touch && file && navigator.canShare && navigator.canShare({files: [file]})) {
+      try { await navigator.share({files: [file], title: 'Tally backup'}); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    this.flash('Backup downloaded');
+  }
+  readRestoreFile(e) {
+    const input = e.target, f = input.files && input.files[0];
+    input.value = '';
+    if (!f) return;
+    const fail = () => this.flash('That file isn\u2019t a Tally backup');
+    const r = new FileReader();
+    r.onload = () => {
+      let b = null;
+      try { b = JSON.parse(r.result); } catch (err) { return fail(); }
+      const d = b && b.app === 'tally' && b.data;
+      if (!d || typeof d !== 'object' || !Array.isArray(d.entries)) return fail();
+      this.setState({restore: b});
+    };
+    r.onerror = fail;
+    r.readAsText(f);
+  }
+  confirmRestore() {
+    const b = this.state.restore;
+    if (!b) return;
+    try { localStorage.setItem(KEY, JSON.stringify(b.data)); }
+    catch (e) { return this.flash('Restore failed. Nothing was changed.'); }
+    this._restoring = true;
+    window.location.reload();
   }
   componentWillUnmount() { this.stopCam(); }
   async getDetector() {
@@ -1104,6 +1174,15 @@ class Component extends DCLogic {
         this.flash('Weight logged');
       },
       hasToast: !!st.toast, toast: st.toast,
+      fileRef: this.fileRef,
+      downloadBackup: () => this.downloadBackup(),
+      pickRestore: () => this.fileRef.current && this.fileRef.current.click(),
+      onRestoreFile: e => this.readRestoreFile(e),
+      restoreOpen: !!st.restore,
+      restoreDate: st.restore ? new Date(st.restore.exportedAt).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '',
+      restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins and ${(st.restore.data.custom || []).length} scanned foods.` : '',
+      confirmRestore: () => this.confirmRestore(),
+      cancelRestore: () => this.setState({restore: null}),
       ...hist, ...wHist,
       openNutrients: set({sheet:'nutrients'}), sheetNut: st.sheet === 'nutrients',
       nutGroups, splitSeg, kcalFromFood: fmt(tot.kcal),
