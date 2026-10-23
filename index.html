@@ -707,17 +707,37 @@ class Component extends DCLogic {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     this.flash('Backup downloaded');
   }
+  validBackup(b) {
+    const d = b && b.data, obj = x => !!x && typeof x === 'object' && !Array.isArray(x);
+    const num = x => typeof x === 'number' && isFinite(x), str = x => typeof x === 'string';
+    const has = (k, ok) => d[k] === undefined || ok(d[k]);
+    const list = (k, ok) => has(k, x => Array.isArray(x) && x.every(ok));
+    const idx = n => x => Number.isInteger(x) && x >= 0 && x < n;
+    // Only entries is required; missing fields fall back to defaults on load
+    return obj(b) && b.app === 'tally' && num(b.backupVersion) && !isNaN(Date.parse(b.exportedAt)) && obj(d) &&
+      Array.isArray(d.entries) && list('entries', e => obj(e) && str(e.meal) && str(e.food) && num(e.s)) &&
+      list('exercises', x => obj(x) && str(x.name) && num(x.min) && num(x.kcal)) &&
+      list('weights', num) &&
+      list('custom', f => obj(f) && str(f.name) && (num(f.kcal) || f.kcal === null) &&
+        ['c','p','f'].every(k => num(f[k])) && Array.isArray(f.m) && f.m.every(num)) &&
+      ['water','goal','goalWeight','age'].every(k => has(k, x => num(x) && x >= 0)) &&
+      has('preset', idx(PRESETS.length)) && has('activity', idx(ACTIVITY.length)) &&
+      has('sex', x => x === 'Female' || x === 'Male') &&
+      has('weekChart', x => x === 'bar' || x === 'line') &&
+      has('weightMode', x => x === 'weeks' || x === 'months');
+  }
   readRestoreFile(e) {
     const input = e.target, f = input.files && input.files[0];
     input.value = '';
     if (!f) return;
     const fail = () => this.flash('That file isn\u2019t a Tally backup');
+    if (f.size > 5 * 1024 * 1024) return fail();
     const r = new FileReader();
     r.onload = () => {
       let b = null;
       try { b = JSON.parse(r.result); } catch (err) { return fail(); }
-      const d = b && b.app === 'tally' && b.data;
-      if (!d || typeof d !== 'object' || !Array.isArray(d.entries)) return fail();
+      if (b && b.app === 'tally' && b.backupVersion > 1) return this.flash('This backup is from a newer version of Tally');
+      if (!this.validBackup(b)) return fail();
       this.setState({restore: b});
     };
     r.onerror = fail;
