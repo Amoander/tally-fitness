@@ -169,6 +169,8 @@
 <div><span class="card-kicker">Weight</span><div style="font-size:32px;font-weight:500;letter-spacing:-0.02em;line-height:1.1;margin-top:4px;">{{ curWeight }} <span style="font-size:14px;color:var(--color-neutral-500);font-weight:400;">{{ unit }}</span></div><div style="font-size:12px;color:var(--color-accent-300);display:flex;align-items:center;gap:4px;"><i class="ph ph-trend-down"></i>{{ weightChange }}</div></div>
 <div style="display:flex;gap:6px;"><button class="btn btn-secondary" onClick="{{ openWeightHist }}" style="font-size:13px;"><i class="ph ph-clock-counter-clockwise"></i>History</button><button class="btn btn-primary" onClick="{{ openWeight }}" style="font-size:13px;"><i class="ph ph-plus"></i>Log</button></div>
 </div>
+<sc-if value="{{ noWeights }}" hint-placeholder-val="{{ false }}"><div style="height:150px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--color-neutral-500);">Log a weigh-in to see your chart.</div></sc-if>
+<sc-if value="{{ hasWeights }}" hint-placeholder-val="{{ true }}">
 <svg width="100%" viewBox="0 0 320 150" style="display:block;overflow:visible;">
 <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--color-accent)" stop-opacity="0.28"></stop><stop offset="1" stop-color="var(--color-accent)" stop-opacity="0"></stop></linearGradient></defs>
 <line x1="0" x2="320" y1="{{ goalLineY }}" y2="{{ goalLineY }}" stroke="var(--color-neutral-700)" stroke-dasharray="3 4"></line>
@@ -178,6 +180,7 @@
 <circle cx="{{ lastX }}" cy="{{ lastY }}" r="4" fill="var(--color-bg)" stroke="var(--color-accent)" stroke-width="2"></circle>
 </svg>
 <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);"><span>Jul 1</span><span>Aug 1</span><span>Sep 1</span><span>Today</span></div>
+</sc-if>
 </div>
 <div class="card" style="padding:16px;gap:12px;box-shadow:var(--shadow-sm);">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -300,7 +303,10 @@
 </div>
 <input type="file" accept=".json,application/json" ref="{{ fileRef }}" onChange="{{ onRestoreFile }}" aria-label="Backup file" style="display:none;">
 </div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
 <button class="btn btn-secondary" onClick="{{ resetDay }}" style="min-height:44px;color:var(--color-neutral-300);"><i class="ph ph-arrow-counter-clockwise"></i>Reset today's diary</button>
+<button class="btn btn-secondary" onClick="{{ clearWeights }}" style="min-height:44px;color:var(--color-neutral-300);opacity:{{ clearWeightsOpacity }};"><i class="ph ph-trash"></i>Clear weight log</button>
+</div>
 </div>
 </sc-if>
 </div>
@@ -480,6 +486,7 @@
 <button class="seg-opt" onClick="{{ c.onClick }}" style="flex:1;justify-content:center;background:{{ c.segBg }};color:{{ c.color }};border:0;border-left:{{ c.segDivider }};font:inherit;font-size:13px;min-height:40px;box-shadow:{{ c.segShadow }};">{{ c.name }}</button>
 </sc-for>
 </div>
+<sc-if value="{{ hasWeights }}" hint-placeholder-val="{{ true }}">
 <svg width="100%" viewBox="0 0 320 116" style="display:block;overflow:visible;">
 <defs><linearGradient id="whg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--color-accent)" stop-opacity="0.22"></stop><stop offset="1" stop-color="var(--color-accent)" stop-opacity="0"></stop></linearGradient></defs>
 <line x1="0" x2="320" y1="{{ wHistGoalY }}" y2="{{ wHistGoalY }}" stroke="var(--color-neutral-700)" stroke-dasharray="3 4"></line>
@@ -489,6 +496,7 @@
 <sc-for list="{{ wHistPts }}" as="p" hint-placeholder-count="6"><circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ p.r }}" fill="{{ p.fill }}" stroke="var(--color-accent)" stroke-width="2"></circle></sc-for>
 </svg>
 <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);margin-top:-4px;"><span>{{ wHistStart }}</span><span>{{ wHistEnd }}</span></div>
+</sc-if>
 </div>
 <div class="tly-scroll" style="flex:1;overflow-y:auto;scrollbar-width:none;padding:0 18px 30px;">
 <sc-for list="{{ wHistRows }}" as="r" hint-placeholder-count="8">
@@ -496,8 +504,10 @@
 <span style="flex:1;font-size:13px;">{{ r.label }}</span>
 <span style="font-size:14px;font-weight:500;white-space:nowrap;">{{ r.weight }} <span style="font-size:11px;color:var(--color-neutral-500);font-weight:400;">{{ unit }}</span></span>
 <span style="width:52px;flex:none;display:flex;justify-content:center;"><sc-if value="{{ r.hasChange }}" hint-placeholder-val="{{ true }}"><span style="width:52px;text-align:center;font-size:11px;font-weight:500;padding:2px 0;border-radius:20px;color:{{ r.tagColor }};background:{{ r.tagBg }};">{{ r.change }}</span></sc-if></span>
+<sc-if value="{{ r.canDelete }}" hint-placeholder-val="{{ true }}"><button class="btn btn-ghost btn-icon" onClick="{{ r.onDelete }}" style="width:30px;height:30px;color:var(--color-neutral-500);" aria-label="Delete weigh-in"><i class="ph ph-x"></i></button></sc-if>
 </div>
 </sc-for>
+<sc-if value="{{ noWeights }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px;color:var(--color-neutral-500);padding:11px 0;">No weigh-ins yet.</div></sc-if>
 <div style="font-size:11px;color:var(--color-neutral-500);padding-top:10px;text-wrap:pretty;">Months show the average of that month's weigh-ins. Green moves toward your goal weight; red moves away.</div>
 </div>
 </div>
@@ -568,6 +578,18 @@
 <div style="display:flex;flex-direction:column;gap:8px;">
 <button class="btn btn-primary" onClick="{{ confirmRestore }}" style="min-height:44px;">Replace my data</button>
 <button class="btn btn-ghost" onClick="{{ cancelRestore }}" style="min-height:44px;">Cancel</button>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ wConfirmOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:color-mix(in srgb,var(--color-bg) 70%,transparent);">
+<div class="card" role="alertdialog" aria-label="{{ wConfirmTitle }}" style="padding:18px;gap:12px;box-shadow:var(--shadow-lg);max-width:320px;width:100%;">
+<div style="display:flex;align-items:center;gap:8px;font-size:17px;font-weight:500;"><i class="ph ph-warning" style="font-size:20px;color:var(--color-accent);"></i>{{ wConfirmTitle }}</div>
+<div style="font-size:13px;color:var(--color-neutral-300);text-wrap:pretty;">{{ wConfirmBody }}</div>
+<div style="display:flex;flex-direction:column;gap:8px;">
+<button class="btn btn-primary" onClick="{{ confirmWeight }}" style="min-height:44px;">{{ wConfirmAction }}</button>
+<button class="btn btn-ghost" onClick="{{ cancelWeight }}" style="min-height:44px;">Cancel</button>
 </div>
 </div>
 </div>
@@ -672,7 +694,7 @@ class Component extends DCLogic {
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null
+      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null
     });
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
@@ -894,11 +916,12 @@ class Component extends DCLogic {
 
     // weight chart
     const ws = st.weights.map(conv), gw = conv(st.goalWeight);
-    const lo = Math.min(gw, ...ws) - 0.6, hi = Math.max(...ws) + 0.6;
+    const hasW = ws.length > 0;
+    const lo = Math.min(gw, ...ws) - 0.6, hi = Math.max(gw, ...ws) + 0.6;
     const yOf = v => 8 + (hi - v) / (hi - lo) * 130;
-    const pts = ws.map((v, i) => [i / (ws.length - 1) * 320, yOf(v)]);
+    const pts = ws.map((v, i) => [ws.length > 1 ? i / (ws.length - 1) * 320 : 160, yOf(v)]);
     const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-    const last = pts[pts.length - 1];
+    const last = pts[pts.length - 1] || [0, 0];
 
     const weekVals = PAST_WEEK.concat(Math.round(tot.kcal));
     const days = ['Th','Fr','Sa','Su','Mo','Tu','We'];
@@ -950,7 +973,9 @@ class Component extends DCLogic {
     const splitSeg = [['c','Carbs'],['p','Protein'],['f','Fat']].map(([k, l]) => ({label:l, color: mc[k], w: (cal[k] / calSum * 100).toFixed(1) + '%', pctLabel: Math.round(cal[k] / calSum * 100) + '%'}));
 
     // Advised calories: Schofield BMR × activity factor, −500 to lose / +300 to gain
-    const curKg = st.weights[st.weights.length - 1];
+    // With no weigh-ins, fall back to the goal weight so advised calories still work
+    const curKg = hasW ? st.weights[st.weights.length - 1] : st.goalWeight;
+    const curKgText = hasW ? `${r1(conv(curKg))} ${unit}` : 'No weigh-ins yet';
     const actLvl = ACTIVITY[st.activity] || ACTIVITY[1];
     const tdee = schofield(st.sex, st.age, curKg) * actLvl.f;
     const dir = st.goalWeight < curKg - 0.2 ? -1 : st.goalWeight > curKg + 0.2 ? 1 : 0;
@@ -1017,21 +1042,19 @@ class Component extends DCLogic {
     const weightMode = st.weightMode || 'weeks';
     let wRows;
     if (weightMode === 'weeks') {
-      wRows = st.weights.map((kg, i) => ({label: `Week of ${md(wDates[i])}`, kg, prev: i ? st.weights[i - 1] : null})).reverse();
+      wRows = st.weights.map((kg, i) => ({label: `Week of ${md(wDates[i])}`, kg, i, prev: i ? st.weights[i - 1] : null})).reverse();
     } else {
       const byMonth = {};
       st.weights.forEach((kg, i) => { const k = wDates[i].getMonth(); (byMonth[k] = byMonth[k] || []).push(kg); });
-      const early = {3: 87.9, 4: 86.8, 5: 85.3};
       const months = [];
       for (let m = 3; m <= TODAY.getMonth(); m++) {
         const arr = byMonth[m];
-        const kg = arr ? arr.reduce((a, b) => a + b, 0) / arr.length : early[m];
-        if (kg != null) months.push({label: new Date(2026, m, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'}), kg});
+        if (arr) months.push({label: new Date(2026, m, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'}), kg: arr.reduce((a, b) => a + b, 0) / arr.length});
       }
       wRows = months.map((x, i) => Object.assign(x, {prev: i ? months[i - 1].kg : null})).reverse();
     }
     const wSeries = wRows.slice().reverse().map(r => conv(r.kg));
-    const wlo = Math.min(gw, ...wSeries) - 0.6, whi = Math.max(...wSeries) + 0.6;
+    const wlo = Math.min(gw, ...wSeries) - 0.6, whi = Math.max(gw, ...wSeries) + 0.6;
     const wy = v => 8 + (whi - v) / (whi - wlo) * 100;
     const wP = wSeries.map((v, i) => [wSeries.length > 1 ? i / (wSeries.length - 1) * 320 : 160, wy(v)]);
     const wPath = wP.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
@@ -1058,10 +1081,28 @@ class Component extends DCLogic {
         const c = good ? GREEN : RED;
         return {label: r.label, weight: r1(conv(r.kg)), hasChange: has,
           change: (diff > 0 ? '+' : diff < 0 ? '−' : '±') + r1(Math.abs(diff)),
-          tagColor: c, tagBg: `color-mix(in srgb, ${c} 14%, transparent)`};
+          tagColor: c, tagBg: `color-mix(in srgb, ${c} 14%, transparent)`,
+          canDelete: r.i != null, onDelete: set({wConfirm: {i: r.i}})};
       })
     };
-    const wBase = st.wDraft ?? st.weights[st.weights.length - 1];
+    // Delete one weigh-in or clear them all; only `weights` changes
+    const wc = st.wConfirm, wcAll = !!(wc && wc.all), wcKg = wc && !wcAll ? st.weights[wc.i] : null;
+    const wConfirm = {
+      wConfirmOpen: !!wc,
+      wConfirmTitle: wcAll ? 'Clear weight log?' : 'Delete this weigh-in?',
+      wConfirmBody: wcAll ? `Removes all ${nW} weigh-in${nW === 1 ? '' : 's'}. Your goal weight and other data stay as they are. This can't be undone.`
+        : wcKg != null ? `Week of ${md(wDates[wc.i])} · ${r1(conv(wcKg))} ${unit} will be removed. This can't be undone.` : '',
+      wConfirmAction: wcAll ? 'Clear weight log' : 'Delete',
+      confirmWeight: () => {
+        if (!wc) return;
+        this.setState(s2 => ({weights: wcAll ? [] : s2.weights.filter((_, j) => j !== wc.i), wConfirm: null}));
+        this.flash(wcAll ? 'Weight log cleared' : 'Weigh-in deleted');
+      },
+      cancelWeight: set({wConfirm: null}),
+      clearWeights: () => nW ? this.setState({wConfirm: {all: true}}) : this.flash('No weigh-ins to clear'),
+      clearWeightsOpacity: nW ? '1' : '0.35'
+    };
+    const wBase = st.wDraft ?? curKg;
 
     return {
       isToday: st.tab === 'today', isDiary: st.tab === 'diary', isProgress: st.tab === 'progress', isGoals: st.tab === 'goals',
@@ -1085,9 +1126,10 @@ class Component extends DCLogic {
       exItems: st.exercises.map(x => ({name:x.name, detail:`${x.min} min`, kcalFmt: fmt(x.kcal), onRemove: () => this.setState(s2 => ({exercises: s2.exercises.filter(y => y.id !== x.id)}))})),
       tabsL: [tab('today','Today','ph-house'), tab('diary','Diary','ph-notebook')],
       tabsR: [tab('progress','Progress','ph-chart-line-up'), tab('goals','Goals','ph-target')],
-      unit, curWeight: r1(ws[ws.length - 1]), goalWeight: st.gwText ?? r1(gw),
-      weightChange: `${r1(ws[0] - ws[ws.length - 1])} ${unit} since Jul 1`,
-      toGoal: r1(Math.max(ws[ws.length - 1] - gw, 0)),
+      unit, curWeight: hasW ? r1(ws[ws.length - 1]) : '—', goalWeight: st.gwText ?? r1(gw),
+      weightChange: hasW ? `${r1(ws[0] - ws[ws.length - 1])} ${unit} since Jul 1` : 'No weigh-ins yet',
+      toGoal: hasW ? r1(Math.max(ws[ws.length - 1] - gw, 0)) : '—',
+      hasWeights: hasW, noWeights: !hasW,
       weightPath: path, weightArea: path + ` L320 150 L0 150 Z`, lastX: last[0], lastY: last[1],
       goalLineY: yOf(gw), goalLabelY: yOf(gw) - 5, goalWeightLabel: `Goal ${r1(gw)}`,
       week: weekVals.map((v, i) => ({label: days[i], h: Math.max(v / maxV * 100, 3) + '%',
@@ -1195,11 +1237,11 @@ class Component extends DCLogic {
       restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins and ${(st.restore.data.custom || []).length} scanned foods.` : '',
       confirmRestore: () => this.confirmRestore(),
       cancelRestore: () => this.setState({restore: null}),
-      ...hist, ...wHist,
+      ...hist, ...wHist, ...wConfirm,
       openNutrients: set({sheet:'nutrients'}), sheetNut: st.sheet === 'nutrients',
       nutGroups, splitSeg, kcalFromFood: fmt(tot.kcal),
       advisedFmt: fmt(advised), advisedGoalText,
-      advisedNote: `Based on ${st.sex.toLowerCase()}, age ${st.age}, ${r1(conv(curKg))} ${unit}, ${actLvl.name.toLowerCase()}.${dir ? ` Aims for about ${rate} a week.` : ''}`,
+      advisedNote: `Based on ${st.sex.toLowerCase()}, age ${st.age}, ${hasW ? `${r1(conv(curKg))} ${unit}` : 'your goal weight'}, ${actLvl.name.toLowerCase()}.${dir ? ` Aims for about ${rate} a week.` : ''}`,
       advisedMatches: advised === st.goal, advisedDiffers: advised !== st.goal,
       applyAdvised: () => { this.setState({goal: advised}); this.flash(`Goal set to ${fmt(advised)} kcal`); },
       goToGoals: set({tab:'goals'}),
@@ -1214,11 +1256,11 @@ class Component extends DCLogic {
       ageUp: () => this.setState({age: Math.min(99, st.age + 1), ageText: null}),
       onAgeInput: e => this.setState({ageText: e.target.value}),
       onAgeBlur: () => { const v = parseInt(st.ageText, 10); this.setState(isFinite(v) ? {age: Math.min(99, Math.max(13, v)), ageText: null} : {ageText: null}); },
-      curWeightNote: `${r1(conv(curKg))} ${unit}`,
+      curWeightNote: curKgText,
       profileOpen: !!st.profileOpen, profileClosed: !st.profileOpen,
       profileCaret: st.profileOpen ? 'ph ph-caret-up' : 'ph ph-caret-down',
       toggleProfile: () => this.setState({profileOpen: !st.profileOpen}),
-      profileSummary: `${st.sex} · ${st.age} · ${r1(conv(curKg))} ${unit} · ${actLvl.name}`,
+      profileSummary: `${st.sex} · ${st.age} · ${curKgText} · ${actLvl.name}`,
       activityOpts: ACTIVITY.map((a, i) => {
         const on = i === st.activity;
         return {name:a.name, sub:a.sub, onClick: set({activity:i}),

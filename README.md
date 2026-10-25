@@ -13,6 +13,7 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 - Online database search for common nutrient data.
 - Scan food barcodes with your camera (or type the number) to lookup nutrient data.
 - Works offline-style from your home screen (Add to Home Screen)
+- Delete a single weigh-in or clear the whole weight log (both ask before deleting)
 - Download a backup of your data and restore it on any device (invalid or damaged backup files are rejected without changing your data)
 
 ## Privacy
