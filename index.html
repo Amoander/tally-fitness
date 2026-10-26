@@ -179,7 +179,7 @@
 <path d="{{ weightPath }}" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
 <circle cx="{{ lastX }}" cy="{{ lastY }}" r="4" fill="var(--color-bg)" stroke="var(--color-accent)" stroke-width="2"></circle>
 </svg>
-<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);"><span>Jul 1</span><span>Aug 1</span><span>Sep 1</span><span>Today</span></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);"><sc-for list="{{ wAxis }}" as="a" hint-placeholder-count="3"><span>{{ a.label }}</span></sc-for></div>
 </sc-if>
 </div>
 <div class="card" style="padding:16px;gap:12px;box-shadow:var(--shadow-sm);">
@@ -513,7 +513,7 @@
 <path d="{{ wHistPath }}" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>
 <sc-for list="{{ wHistPts }}" as="p" hint-placeholder-count="6"><circle cx="{{ p.x }}" cy="{{ p.y }}" r="{{ p.r }}" fill="{{ p.fill }}" stroke="var(--color-accent)" stroke-width="2"></circle></sc-for>
 </svg>
-<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);margin-top:-4px;"><span>{{ wHistStart }}</span><span>{{ wHistEnd }}</span></div>
+<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-neutral-500);margin-top:-4px;"><sc-for list="{{ wHistAxis }}" as="a" hint-placeholder-count="2"><span>{{ a.label }}</span></sc-for></div>
 </sc-if>
 </div>
 <div class="tly-scroll" style="flex:1;overflow-y:auto;scrollbar-width:none;padding:0 18px 30px;">
@@ -688,21 +688,54 @@ const PRESETS = [
 const WEIGHTS = [84.2,84.0,83.9,83.5,83.6,83.1,82.8,82.9,82.4,82.2,81.9,81.8,81.6];
 const PAST_WEEK = [1980,2240,1870,2050,2310,1920];
 const KEY = 'tally-state-v1';
+const DATA_VERSION = 2;
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const r1 = n => (Math.round(n * 10) / 10).toString();
 let uid = 100;
+// Dates are local YYYY-MM-DD strings (toISOString would give the UTC date)
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseYmd = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const isYmd = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && ymd(parseYmd(s)) === s;
+const addDays = (dt, n) => { const x = new Date(dt); x.setDate(x.getDate() + n); return x; };
+// The old sample diary, kept only so migrate() can recognise and remove it
+const SAMPLE_ENTRIES = [
+  {id:1,meal:'Breakfast',food:'oat',s:1},{id:2,meal:'Breakfast',food:'banana',s:1},{id:3,meal:'Breakfast',food:'latte',s:1},
+  {id:4,meal:'Lunch',food:'chk',s:1.5},{id:5,meal:'Lunch',food:'rice',s:1},{id:6,meal:'Lunch',food:'broc',s:1},
+  {id:7,meal:'Snacks',food:'almond',s:1}
+];
+const SAMPLE_EX = {id:8,name:'Running',min:30,kcal:330};
 
 function initial() {
   return {
-    entries: [
-      {id:1,meal:'Breakfast',food:'oat',s:1},{id:2,meal:'Breakfast',food:'banana',s:1},{id:3,meal:'Breakfast',food:'latte',s:1},
-      {id:4,meal:'Lunch',food:'chk',s:1.5},{id:5,meal:'Lunch',food:'rice',s:1},{id:6,meal:'Lunch',food:'broc',s:1},
-      {id:7,meal:'Snacks',food:'almond',s:1}
-    ],
-    exercises: [{id:8,name:'Running',min:30,kcal:330}],
-    water: 3, goal: 2100, preset: 0, goalWeight: 78, weights: WEIGHTS.slice(), sex: 'Female', age: 34, activity: 1,
+    entries: [], exercises: [],
+    water: 0, goal: 2100, preset: 0, goalWeight: 78, weights: [], sex: 'Female', age: 34, activity: 1,
     custom: []
   };
+}
+// Upgrades version 1 data: plain-number weigh-ins get dates a week apart, ending on anchor; exact sample data is dropped
+function migrate(data, anchor) {
+  if (!data || typeof data !== 'object' || data.dataVersion >= 2) return data;
+  const d = Object.assign({}, data);
+  const same = (a, b) => !!a && Object.keys(b).every(k => a[k] === b[k]);
+  if (Array.isArray(d.weights)) {
+    let w = d.weights;
+    if (w.length >= WEIGHTS.length && WEIGHTS.every((v, i) => w[i] === v)) w = w.slice(WEIGHTS.length);
+    const end = parseYmd(anchor);
+    d.weights = w.map((x, i) => typeof x === 'number' ? {date: ymd(addDays(end, -(w.length - 1 - i) * 7)), kg: x} : x);
+  }
+  if (Array.isArray(d.entries)) d.entries = d.entries.filter(e => !SAMPLE_ENTRIES.some(s => same(e, s)));
+  if (Array.isArray(d.exercises)) d.exercises = d.exercises.filter(x => !same(x, SAMPLE_EX));
+  d.dataVersion = DATA_VERSION;
+  return d;
+}
+// Valid weigh-ins only, sorted by date, one per date (the last one wins)
+function normWeights(list) {
+  const byDate = {};
+  (Array.isArray(list) ? list : []).forEach(w => {
+    if (w && isYmd(w.date) && typeof w.kg === 'number' && isFinite(w.kg) && w.kg > 0) byDate[w.date] = w.kg;
+  });
+  return Object.keys(byDate).sort().map(date => ({date, kg: byDate[date]}));
 }
 
 class Component extends DCLogic {
@@ -710,10 +743,15 @@ class Component extends DCLogic {
     super(p);
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    // Upgraded data is saved straight away so the dates given to old weigh-ins are fixed the first time
+    const old = !!saved && typeof saved === 'object' && !Array.isArray(saved) && !(saved.dataVersion >= 2);
+    saved = migrate(saved, ymd(new Date()));
+    if (old) { saved.weights = normWeights(saved.weights); try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} }
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
       act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null
     });
+    this.state.weights = normWeights(this.state.weights);
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
     this.videoRef = React.createRef();
@@ -724,7 +762,7 @@ class Component extends DCLogic {
     try { prev = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
     const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom} = this.state;
     // Fields the app doesn't use are kept as-is, so nothing in saved data is ever dropped
-    return Object.assign({}, prev && typeof prev === 'object' ? prev : {}, {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom});
+    return Object.assign({}, prev && typeof prev === 'object' ? prev : {}, {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom, dataVersion: DATA_VERSION});
   }
   componentDidUpdate() {
     if (this._restoring) return;
@@ -732,7 +770,7 @@ class Component extends DCLogic {
   }
   async downloadBackup() {
     const now = new Date();
-    const backup = {app: 'tally', backupVersion: 1, storageKey: KEY, exportedAt: now.toISOString(), data: this.savedData()};
+    const backup = {app: 'tally', backupVersion: 2, storageKey: KEY, exportedAt: now.toISOString(), data: this.savedData()};
     const name = `tally-backup-${now.toISOString().slice(0, 10)}.json`;
     const blob = new Blob([JSON.stringify(backup, null, 2)], {type: 'application/json'});
     const file = typeof File === 'function' ? new File([blob], name, {type: 'application/json'}) : null;
@@ -753,11 +791,13 @@ class Component extends DCLogic {
     const has = (k, ok) => d[k] === undefined || ok(d[k]);
     const list = (k, ok) => has(k, x => Array.isArray(x) && x.every(ok));
     const idx = n => x => Number.isInteger(x) && x >= 0 && x < n;
+    const dated = w => obj(w) && isYmd(w.date) && num(w.kg) && w.kg > 0;
     // Only entries is required; missing fields fall back to defaults on load
     return obj(b) && b.app === 'tally' && num(b.backupVersion) && !isNaN(Date.parse(b.exportedAt)) && obj(d) &&
       Array.isArray(d.entries) && list('entries', e => obj(e) && str(e.meal) && str(e.food) && num(e.s)) &&
       list('exercises', x => obj(x) && str(x.name) && num(x.min) && num(x.kcal)) &&
-      list('weights', num) &&
+      has('dataVersion', x => Number.isInteger(x) && x >= 1) &&
+      list('weights', d.dataVersion >= 2 ? dated : w => num(w) || dated(w)) &&
       list('custom', f => obj(f) && str(f.name) && (num(f.kcal) || f.kcal === null) &&
         ['c','p','f'].every(k => num(f[k])) && Array.isArray(f.m) && f.m.every(num)) &&
       ['water','goal','goalWeight','age'].every(k => has(k, x => num(x) && x >= 0)) &&
@@ -776,7 +816,7 @@ class Component extends DCLogic {
     r.onload = () => {
       let b = null;
       try { b = JSON.parse(r.result); } catch (err) { return fail(); }
-      if (b && b.app === 'tally' && b.backupVersion > 1) return this.flash('This backup is from a newer version of Tally');
+      if (b && b.app === 'tally' && b.backupVersion > 2) return this.flash('This backup is from a newer version of Tally');
       if (!this.validBackup(b)) return fail();
       this.setState({restore: b});
     };
@@ -786,7 +826,9 @@ class Component extends DCLogic {
   confirmRestore() {
     const b = this.state.restore;
     if (!b) return;
-    try { localStorage.setItem(KEY, JSON.stringify(b.data)); }
+    // Old backups are dated from the day they were exported, not the day they're restored
+    const data = migrate(b.data, ymd(new Date(b.exportedAt)));
+    try { localStorage.setItem(KEY, JSON.stringify(data)); }
     catch (e) { return this.flash('Restore failed. Nothing was changed.'); }
     this._restoring = true;
     window.location.reload();
@@ -922,6 +964,8 @@ class Component extends DCLogic {
     const unit = lb ? 'lb' : 'kg';
     const ringMode = (this.props.summaryStyle ?? 'ring') !== 'bar';
     const set = o => () => this.setState(o);
+    const today = ymd(new Date()), TODAY = parseYmd(today);
+    const md = dt => dt.toLocaleDateString('en-US', {month:'short', day:'numeric'});
 
     let tot = {kcal:0,c:0,p:0,f:0};
     st.entries.forEach(e => { const f = FMAP[e.food]; if (!f) return; ['kcal','c','p','f'].forEach(k => tot[k] += f[k] * e.s); });
@@ -949,14 +993,20 @@ class Component extends DCLogic {
     const tab = (id, label, icon) => ({label, icon: (st.tab === id ? 'ph-fill ' : 'ph ') + icon,
       color: st.tab === id ? 'var(--color-accent)' : 'var(--color-neutral-500)', onClick: set({tab:id})});
 
-    // weight chart
-    const ws = st.weights.map(conv), gw = conv(st.goalWeight);
+    // weight chart; points are placed by date
+    const ws = st.weights.map(w => conv(w.kg)), gw = conv(st.goalWeight);
     const hasW = ws.length > 0;
     const lo = Math.min(gw, ...ws) - 0.6, hi = Math.max(gw, ...ws) + 0.6;
     const yOf = v => 8 + (hi - v) / (hi - lo) * 130;
-    const pts = ws.map((v, i) => [ws.length > 1 ? i / (ws.length - 1) * 320 : 160, yOf(v)]);
+    const wT = st.weights.map(w => parseYmd(w.date).getTime());
+    const span = wT.length > 1 ? wT[wT.length - 1] - wT[0] : 0;
+    const pts = ws.map((v, i) => [span ? (wT[i] - wT[0]) / span * 320 : 160, yOf(v)]);
     const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
     const last = pts[pts.length - 1] || [0, 0];
+    // Axis: first, middle and last date; a single weigh-in sits in the middle like its point
+    const wDay = t => { const s = ymd(new Date(t)); return s === today ? 'Today' : md(new Date(t)); };
+    const wAxis = (!hasW ? [] : !span ? ['', wDay(wT[0]), '']
+      : [wDay(wT[0]), span >= 2 * 864e5 ? wDay(wT[0] + span / 2) : '', wDay(wT[wT.length - 1])]).map(label => ({label}));
 
     const weekVals = PAST_WEEK.concat(Math.round(tot.kcal));
     const days = ['Th','Fr','Sa','Su','Mo','Tu','We'];
@@ -1010,7 +1060,7 @@ class Component extends DCLogic {
 
     // Advised calories: Schofield BMR × activity factor, −500 to lose / +300 to gain
     // With no weigh-ins, fall back to the goal weight so advised calories still work
-    const curKg = hasW ? st.weights[st.weights.length - 1] : st.goalWeight;
+    const curKg = hasW ? st.weights[st.weights.length - 1].kg : st.goalWeight;
     const curKgText = hasW ? `${r1(conv(curKg))} ${unit}` : 'No weigh-ins yet';
     const actLvl = ACTIVITY[st.activity] || ACTIVITY[1];
     const tdee = schofield(st.sex, st.age, curKg) * actLvl.f;
@@ -1022,9 +1072,6 @@ class Component extends DCLogic {
     // ---- Week history (synthetic past weeks, current week uses real data for today) ----
     const RED = 'oklch(0.72 0.15 25)', GREEN = 'oklch(0.8 0.13 155)';
     const rnd = s => { const x = Math.sin(s * 9301.7 + 49297) * 233280; return x - Math.floor(x); };
-    const TODAY = new Date(2026, 8, 23);
-    const md = dt => dt.toLocaleDateString('en-US', {month:'short', day:'numeric'});
-    const addDays = (dt, n) => { const x = new Date(dt); x.setDate(x.getDate() + n); return x; };
     const microT = [
       ['Fiber','fib',male ? 38 : 25,'g'],['Sugar','sug',50,'g'],['Saturated fat','sat',20,'g'],
       ['Sodium','na',2300,'mg'],['Potassium','k',male ? 3400 : 2600,'mg'],['Cholesterol','chol',300,'mg'],
@@ -1074,25 +1121,26 @@ class Component extends DCLogic {
 
     // ---- Weight history ----
     const nW = st.weights.length;
-    const wDates = st.weights.map((_, i) => addDays(TODAY, -(nW - 1 - i) * 7));
+    // Dates outside the current year also show the year
+    const wLabel = s => { const dt = parseYmd(s); return dt.toLocaleDateString('en-US', dt.getFullYear() === TODAY.getFullYear() ? {month:'short', day:'numeric'} : {month:'short', day:'numeric', year:'numeric'}); };
     const weightMode = st.weightMode || 'weeks';
     let wRows;
     if (weightMode === 'weeks') {
-      wRows = st.weights.map((kg, i) => ({label: `Week of ${md(wDates[i])}`, kg, i, prev: i ? st.weights[i - 1] : null})).reverse();
+      wRows = st.weights.map((w, i) => ({label: wLabel(w.date), kg: w.kg, date: w.date, prev: i ? st.weights[i - 1].kg : null})).reverse();
     } else {
       const byMonth = {};
-      st.weights.forEach((kg, i) => { const k = wDates[i].getMonth(); (byMonth[k] = byMonth[k] || []).push(kg); });
-      const months = [];
-      for (let m = 3; m <= TODAY.getMonth(); m++) {
-        const arr = byMonth[m];
-        if (arr) months.push({label: new Date(2026, m, 1).toLocaleDateString('en-US', {month:'long', year:'numeric'}), kg: arr.reduce((a, b) => a + b, 0) / arr.length});
-      }
+      st.weights.forEach(w => { const k = w.date.slice(0, 7); (byMonth[k] = byMonth[k] || []).push(w.kg); });
+      const months = Object.keys(byMonth).sort().map(k => ({label: parseYmd(k + '-01').toLocaleDateString('en-US', {month:'long', year:'numeric'}), kg: byMonth[k].reduce((a, b) => a + b, 0) / byMonth[k].length}));
       wRows = months.map((x, i) => Object.assign(x, {prev: i ? months[i - 1].kg : null})).reverse();
     }
-    const wSeries = wRows.slice().reverse().map(r => conv(r.kg));
+    const wOld = wRows.slice().reverse();
+    const wSeries = wOld.map(r => conv(r.kg));
     const wlo = Math.min(gw, ...wSeries) - 0.6, whi = Math.max(gw, ...wSeries) + 0.6;
     const wy = v => 8 + (whi - v) / (whi - wlo) * 100;
-    const wP = wSeries.map((v, i) => [wSeries.length > 1 ? i / (wSeries.length - 1) * 320 : 160, wy(v)]);
+    // Weigh-ins are spaced by date like the Progress chart; months stay evenly spaced
+    const hT = wOld.map((r, i) => weightMode === 'weeks' ? parseYmd(r.date).getTime() : i);
+    const hSpan = hT.length > 1 ? hT[hT.length - 1] - hT[0] : 0;
+    const wP = wSeries.map((v, i) => [hSpan ? (hT[i] - hT[0]) / hSpan * 320 : 160, wy(v)]);
     const wPath = wP.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
     const towardGoal = (a, b) => Math.abs(b - st.goalWeight) <= Math.abs(a - st.goalWeight);
     const wModeOpt = (id, label, i) => {
@@ -1103,12 +1151,11 @@ class Component extends DCLogic {
     };
     const wHist = {
       openWeightHist: set({sheet:'weightHist'}), sheetWHist: st.sheet === 'weightHist',
-      wModeOpts: [wModeOpt('weeks', 'Weeks', 0), wModeOpt('months', 'Months', 1)],
+      wModeOpts: [wModeOpt('weeks', 'Weigh-ins', 0), wModeOpt('months', 'Months', 1)],
       wHistPath: wPath, wHistArea: wPath + ' L320 116 L0 116 Z',
       wHistPts: wP.map((p, i) => ({x: p[0], y: p[1], r: i === wP.length - 1 ? 4.5 : 2.5, fill: i === wP.length - 1 ? 'var(--color-accent)' : 'var(--color-surface)'})),
       wHistGoalY: wy(gw), wHistGoalLabelY: wy(gw) - 5,
-      wHistStart: wRows.length ? wRows[wRows.length - 1].label.replace('Week of ', '') : '',
-      wHistEnd: wRows.length ? wRows[0].label.replace('Week of ', '') : '',
+      wHistAxis: (wRows.length === 1 ? ['', wRows[0].label, ''] : wRows.length ? [wRows[wRows.length - 1].label, wRows[0].label] : []).map(label => ({label})),
       wHistTotal: wRows.length > 1 ? `${r1(Math.abs(conv(wRows[0].kg) - conv(wRows[wRows.length - 1].kg)))} ${unit} ${wRows[0].kg <= wRows[wRows.length - 1].kg ? 'down' : 'up'}` : '',
       wHistRows: wRows.map(r => {
         const has = r.prev != null;
@@ -1118,20 +1165,20 @@ class Component extends DCLogic {
         return {label: r.label, weight: r1(conv(r.kg)), hasChange: has,
           change: (diff > 0 ? '+' : diff < 0 ? '−' : '±') + r1(Math.abs(diff)),
           tagColor: c, tagBg: `color-mix(in srgb, ${c} 14%, transparent)`,
-          canDelete: r.i != null, onDelete: set({wConfirm: {i: r.i}})};
+          canDelete: r.date != null, onDelete: set({wConfirm: {date: r.date}})};
       })
     };
     // Delete one weigh-in or clear them all; only `weights` changes
-    const wc = st.wConfirm, wcAll = !!(wc && wc.all), wcKg = wc && !wcAll ? st.weights[wc.i] : null;
+    const wc = st.wConfirm, wcAll = !!(wc && wc.all), wcW = wc && !wcAll ? st.weights.find(w => w.date === wc.date) : null;
     const wConfirm = {
       wConfirmOpen: !!wc,
       wConfirmTitle: wcAll ? 'Clear weight log?' : 'Delete this weigh-in?',
       wConfirmBody: wcAll ? `Removes all ${nW} weigh-in${nW === 1 ? '' : 's'}. Your goal weight and other data stay as they are. This can't be undone.`
-        : wcKg != null ? `Week of ${md(wDates[wc.i])} · ${r1(conv(wcKg))} ${unit} will be removed. This can't be undone.` : '',
+        : wcW ? `${wLabel(wcW.date)} · ${r1(conv(wcW.kg))} ${unit} will be removed. This can't be undone.` : '',
       wConfirmAction: wcAll ? 'Clear weight log' : 'Delete',
       confirmWeight: () => {
         if (!wc) return;
-        this.setState(s2 => ({weights: wcAll ? [] : s2.weights.filter((_, j) => j !== wc.i), wConfirm: null}));
+        this.setState(s2 => ({weights: wcAll ? [] : s2.weights.filter(w => w.date !== wc.date), wConfirm: null}));
         this.flash(wcAll ? 'Weight log cleared' : 'Weigh-in deleted');
       },
       cancelWeight: set({wConfirm: null}),
@@ -1142,7 +1189,8 @@ class Component extends DCLogic {
 
     return {
       isToday: st.tab === 'today', isDiary: st.tab === 'diary', isProgress: st.tab === 'progress', isGoals: st.tab === 'goals',
-      dateLabel: 'Wednesday, Sep 23',
+      dateLabel: TODAY.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}),
+      wAxis,
       summaryRing: ringMode, summaryBar: !ringMode, showFormula: this.props.showFormula ?? true,
       goalFmt: fmt(st.goal), eatenFmt: fmt(tot.kcal), burnedFmt: fmt(burned),
       remainingFmt: fmt(Math.abs(remaining)), remainingLabel: over ? 'Over' : 'Remaining',
@@ -1163,7 +1211,7 @@ class Component extends DCLogic {
       tabsL: [tab('today','Today','ph-house'), tab('diary','Diary','ph-notebook')],
       tabsR: [tab('progress','Progress','ph-chart-line-up'), tab('goals','Goals','ph-target')],
       unit, curWeight: hasW ? r1(ws[ws.length - 1]) : '—', goalWeight: st.gwText ?? r1(gw),
-      weightChange: hasW ? `${r1(ws[0] - ws[ws.length - 1])} ${unit} since Jul 1` : 'No weigh-ins yet',
+      weightChange: hasW ? `${r1(ws[0] - ws[ws.length - 1])} ${unit} since ${md(parseYmd(st.weights[0].date))}` : 'No weigh-ins yet',
       toGoal: hasW ? r1(Math.max(ws[ws.length - 1] - gw, 0)) : '—',
       hasWeights: hasW, noWeights: !hasW,
       weightPath: path, weightArea: path + ` L320 150 L0 150 Z`, lastX: last[0], lastY: last[1],
@@ -1267,8 +1315,10 @@ class Component extends DCLogic {
       saveWeight: () => {
         const typed = st.wText == null ? null : this.parseKg(st.wText, lb);
         const kg = typed ?? wBase;
-        this.setState(s2 => ({weights: s2.weights.concat(kg), sheet:null, wDraft:null, wText:null}));
-        this.flash('Weight logged');
+        const replaced = st.weights.some(w => w.date === today);
+        // One weigh-in per day: logging again today replaces it
+        this.setState(s2 => ({weights: s2.weights.filter(w => w.date !== today).concat({date: today, kg}).sort((a, b) => a.date < b.date ? -1 : 1), sheet:null, wDraft:null, wText:null}));
+        this.flash(replaced ? 'Weight updated' : 'Weight logged');
       },
       hasToast: !!st.toast, toast: st.toast,
       fileRef: this.fileRef,
