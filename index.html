@@ -370,6 +370,7 @@
 <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
 <div style="padding:30px 10px;text-align:center;font-size:13px;color:var(--color-neutral-500);">No foods match “{{ query }}”.</div>
 </sc-if>
+<button class="btn btn-secondary" onClick="{{ openOwn }}" style="width:100%;min-height:44px;margin-top:8px;"><i class="ph ph-plus"></i>Add your own food</button>
 </div>
 </sc-if>
 <sc-if value="{{ foodDetail }}" hint-placeholder-val="{{ false }}">
@@ -424,6 +425,23 @@
 <div style="display:flex;gap:8px;"><input class="input" inputMode="numeric" placeholder="e.g. 5000159484695" value="{{ scanCode }}" onChange="{{ onScanCode }}" onKeyDown="{{ onScanKey }}" style="flex:1;min-width:0;min-height:44px;background:var(--color-bg);"><button class="btn btn-primary" onClick="{{ lookupTyped }}" style="min-height:44px;">Look up</button></div>
 </div>
 <div style="font-size:11px;color:var(--color-neutral-500);">Product data from Open Food Facts.</div>
+</div>
+</sc-if>
+<sc-if value="{{ ownOpen }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:2;background:var(--color-surface);border-radius:24px 24px 0 0;display:flex;flex-direction:column;gap:14px;padding:16px 18px 30px;overflow-y:auto;">
+<div style="display:flex;align-items:center;justify-content:space-between;"><div style="font-size:18px;font-weight:500;">Add your own food</div><button class="btn btn-ghost btn-icon" onClick="{{ closeOwn }}" style="color:var(--color-neutral-400);" aria-label="Close"><i class="ph ph-x" style="font-size:18px;"></i></button></div>
+<div style="display:flex;flex-direction:column;gap:6px;"><div style="font-size:12px;color:var(--color-neutral-500);">Name</div><input class="input" aria-label="Name" value="{{ own.name }}" onChange="{{ onOwnName }}" style="min-height:44px;background:var(--color-bg);"></div>
+<div style="display:flex;flex-direction:column;gap:6px;"><div style="font-size:12px;color:var(--color-neutral-500);">Serving size</div><input class="input" aria-label="Serving size" placeholder="e.g. 1 cup (240 g)" value="{{ own.serv }}" onChange="{{ onOwnServ }}" style="min-height:44px;background:var(--color-bg);"></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+<sc-for list="{{ ownNums }}" as="n" hint-placeholder-count="4">
+<div style="display:flex;flex-direction:column;gap:6px;"><div style="font-size:12px;color:var(--color-neutral-500);">{{ n.label }}</div><input class="input" inputMode="decimal" aria-label="{{ n.label }}" value="{{ n.val }}" onChange="{{ n.onChange }}" style="min-width:0;min-height:44px;background:var(--color-bg);"></div>
+</sc-for>
+</div>
+<sc-if value="{{ ownErr }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:13px;color:var(--color-neutral-300);text-wrap:pretty;">{{ ownErr }}</div>
+</sc-if>
+<div style="font-size:11px;color:var(--color-neutral-500);">Values are per serving.</div>
+<button class="btn btn-primary" onClick="{{ saveOwn }}" style="min-height:48px;font-size:15px;"><i class="ph ph-check"></i>Save food</button>
 </div>
 </sc-if>
 </div>
@@ -627,7 +645,7 @@ const OFF_URL = 'https://world.openfoodfacts.org/api/v2/product/';
 const BD_URL = 'https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.min.js';
 const SCAN_FORMATS = ['ean_13','ean_8','upc_a','upc_e'];
 const rnd = n => Math.round(n * 10) / 10;
-// Scanned foods are saved in state.custom and registered into FMAP/MICRO so entries resolve like built-ins
+// Scanned and user-added foods are saved in state.custom and registered into FMAP/MICRO so entries resolve like built-ins
 function registerFood(f) { FMAP[f.id] = f; MICRO[f.id] = f.m; }
 // Per serving: fiber g, sugar g, sat fat g, sodium mg, potassium mg, cholesterol mg, calcium mg, iron mg, vitamin C mg
 const MK = ['fib','sug','sat','na','k','chol','ca','fe','vc'];
@@ -694,7 +712,7 @@ class Component extends DCLogic {
     try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null
+      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null
     });
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
@@ -852,6 +870,23 @@ class Component extends DCLogic {
       this.setState({scanMsg:'Couldn’t reach the food database. Check your connection and try again.'});
     }
   }
+  // User-added foods have no micronutrient data, so m is all zeros
+  saveOwnFood() {
+    const o = this.state.own;
+    if (!o) return;
+    const num = t => { const v = parseFloat(String(t).replace(',', '.')); return isFinite(v) && v >= 0 ? rnd(v) : null; };
+    const err = msg => this.setState({own: Object.assign({}, o, {err: msg})});
+    const name = o.name.trim(), kcal = num(o.kcal);
+    if (!name) return err('Give the food a name.');
+    if (kcal == null) return err('Enter the calories per serving.');
+    const bad = [['p','Protein'],['c','Carbs'],['f','Fat']].find(([k]) => o[k].trim() && num(o[k]) == null);
+    if (bad) return err(`${bad[1]} must be a number.`);
+    const f = {id: 'my' + Date.now(), name, serv: o.serv.trim() || '1 serving', kcal: Math.round(kcal),
+      c: num(o.c) || 0, p: num(o.p) || 0, f: num(o.f) || 0, m: MK.map(() => 0)};
+    registerFood(f);
+    this.setState(st => ({custom: st.custom.concat(f), own: null, sel: f.id, servings: 1, query: ''}));
+    this.flash('Saved ' + name);
+  }
   flash(msg) {
     clearTimeout(this._t);
     this.setState({toast: msg});
@@ -908,7 +943,7 @@ class Component extends DCLogic {
       const kcal = st.entries.filter(e => e.meal === m.name && FMAP[e.food]).reduce((a, e) => a + FMAP[e.food].kcal * e.s, 0);
       return {name:m.name, icon:m.icon, items, kcalFmt: fmt(kcal),
         summary: items.length ? items.map(i => i.name).join(', ') : 'Nothing logged yet',
-        onAdd: set({sheet:'food', meal:m.name, sel:null, query:''})};
+        onAdd: set({sheet:'food', meal:m.name, sel:null, query:'', own:null})};
     });
 
     const tab = (id, label, icon) => ({label, icon: (st.tab === id ? 'ph-fill ' : 'ph ') + icon,
@@ -946,6 +981,7 @@ class Component extends DCLogic {
       selV = {name: sel.name, serv: sel.serv, kcalTot: fmt(sel.kcal * s)};
     }
     const act = ACTS[st.act];
+    const ownField = k => e => { const v = e.target.value; this.setState(s2 => ({own: Object.assign({}, s2.own, {[k]: v, err: ''})})); };
 
     // Micronutrient totals
     const mt = Object.fromEntries(MK.map(k => [k, 0]));
@@ -1168,12 +1204,12 @@ class Component extends DCLogic {
       gwDown: () => this.stepGoalWeight(-1, lb),
       gwUp: () => this.stepGoalWeight(1, lb),
       resetDay: () => { this.setState({entries: [], exercises: [], water: 0}); this.flash('Diary cleared'); },
-      hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null}); },
+      hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null, own:null}); },
       openQuick: set({sheet:'quick'}), openExercise: set({sheet:'ex'}),
       openWeight: set({sheet:'weight', wDraft:null, wText:null}),
       sheetQuick: st.sheet === 'quick', sheetFood: st.sheet === 'food', sheetEx: st.sheet === 'ex', sheetWeight: st.sheet === 'weight',
       quick: [
-        {label:'Food', sub:'Search or scan', icon:'ph ph-fork-knife', onClick: set({sheet:'food', sel:null, query:''})},
+        {label:'Food', sub:'Search or scan', icon:'ph ph-fork-knife', onClick: set({sheet:'food', sel:null, query:'', own:null})},
         {label:'Exercise', sub:'Cardio or strength', icon:'ph ph-sneaker-move', onClick: set({sheet:'ex'})},
         {label:'Water', sub:'+1 glass (250 ml)', icon:'ph ph-drop', onClick: () => { this.setState({sheet:null, water: Math.min(8, st.water + 1)}); this.flash('Added 250 ml water'); }},
         {label:'Weight', sub:'Log today', icon:'ph ph-scales', onClick: set({sheet:'weight', wDraft:null})}
@@ -1206,6 +1242,13 @@ class Component extends DCLogic {
       servUp: () => this.setState({servings: Math.min(10, st.servings + 0.5)}),
       backToList: set({sel:null}),
       addSel: () => sel && this.addFood(sel.id, st.servings, st.meal),
+      ownOpen: !!st.own, own: st.own || {name:'', serv:''}, ownErr: st.own ? st.own.err : '',
+      openOwn: set({own: {name: st.query.trim(), serv:'', kcal:'', c:'', p:'', f:'', err:''}}),
+      closeOwn: set({own: null}),
+      onOwnName: ownField('name'), onOwnServ: ownField('serv'),
+      ownNums: [['kcal','Calories (kcal)'],['p','Protein (g)'],['c','Carbs (g)'],['f','Fat (g)']].map(([k, label]) =>
+        ({label, val: st.own ? st.own[k] : '', onChange: ownField(k)})),
+      saveOwn: () => this.saveOwnFood(),
       activities: ACTS.map((a, i) => ({name:a.name, icon:a.icon, onClick: set({act:i}),
         border: i === st.act ? 'var(--color-accent)' : 'var(--color-neutral-800)',
         bg: i === st.act ? 'var(--color-accent-900)' : 'var(--color-bg)'})),
@@ -1234,7 +1277,7 @@ class Component extends DCLogic {
       onRestoreFile: e => this.readRestoreFile(e),
       restoreOpen: !!st.restore,
       restoreDate: st.restore ? new Date(st.restore.exportedAt).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '',
-      restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins and ${(st.restore.data.custom || []).length} scanned foods.` : '',
+      restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins and ${(st.restore.data.custom || []).length} saved foods.` : '',
       confirmRestore: () => this.confirmRestore(),
       cancelRestore: () => this.setState({restore: null}),
       ...hist, ...wHist, ...wConfirm,
