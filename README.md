@@ -10,7 +10,8 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 
 - Tracks daily, weekly, monthly and yearly macro and micro nutrients, hydration, weight, and workouts.
 - Estimates daily macro and micro nutrient needs based off age, height, weight, and activity level. 
-- Online database search for common nutrient data.
+- Search a built-in list of common foods (only barcode lookups use the online database).
+- Add your own food from the search screen; it's saved for later searches and included in backups.
 - Scan food barcodes with your camera (or type the number) to lookup nutrient data.
 - Works offline-style from your home screen (Add to Home Screen)
 - Delete a single weigh-in or clear the whole weight log (both ask before deleting)
