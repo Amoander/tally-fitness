@@ -36,9 +36,7 @@
 <sc-if value="{{ isToday }}" hint-placeholder-val="{{ true }}">
 <div style="display:flex;flex-direction:column;gap:12px;">
 <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:8px 2px 4px;">
-<div><div style="font-size:12px;color:var(--color-neutral-500);letter-spacing:0.04em;">{{ dateLabel }}</div><div style="font-size:28px;font-weight:500;letter-spacing:-0.02em;line-height:1.15;">Today</div></div>
-<div style="display:flex;align-items:center;gap:6px;"><span class="tag tag-accent"><i class="ph-fill ph-flame" style="margin-right:4px;"></i>12-day streak</span></div>
-</div>
+<div><div style="font-size:12px;color:var(--color-neutral-500);letter-spacing:0.04em;">{{ dateLabel }}</div><div style="font-size:28px;font-weight:500;letter-spacing:-0.02em;line-height:1.15;">Today</div></div></div>
 
 <div class="card" style="padding:16px;gap:14px;box-shadow:var(--shadow-sm);">
 <div style="display:flex;justify-content:space-between;align-items:baseline;"><span class="card-kicker">Calories</span><span style="font-size:11px;color:var(--color-neutral-500);">Goal {{ goalFmt }}</span></div>
@@ -163,7 +161,7 @@
 
 <sc-if value="{{ isProgress }}" hint-placeholder-val="{{ false }}">
 <div style="display:flex;flex-direction:column;gap:12px;">
-<div style="padding:8px 2px 4px;"><div style="font-size:12px;color:var(--color-neutral-500);">Last 12 weeks</div><div style="font-size:28px;font-weight:500;letter-spacing:-0.02em;line-height:1.15;">Progress</div></div>
+<div style="padding:8px 2px 4px;"><div style="font-size:12px;color:var(--color-neutral-500);">{{ dateLabel }}</div><div style="font-size:28px;font-weight:500;letter-spacing:-0.02em;line-height:1.15;">Progress</div></div>
 <div class="card" style="padding:16px;gap:12px;box-shadow:var(--shadow-sm);">
 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
 <div><span class="card-kicker">Weight</span><div style="font-size:32px;font-weight:500;letter-spacing:-0.02em;line-height:1.1;margin-top:4px;">{{ curWeight }} <span style="font-size:14px;color:var(--color-neutral-500);font-weight:400;">{{ unit }}</span></div><div style="font-size:12px;color:var(--color-accent-300);display:flex;align-items:center;gap:4px;"><i class="ph ph-trend-down"></i>{{ weightChange }}</div></div>
@@ -184,7 +182,7 @@
 </div>
 <div class="card" style="padding:16px;gap:12px;box-shadow:var(--shadow-sm);">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-<div><span class="card-kicker">Calories this week</span><div style="font-size:12px;color:var(--color-neutral-400);margin-top:2px;">Avg {{ weekAvg }}</div></div>
+<div><span class="card-kicker">Calories this week</span><div style="font-size:12px;color:var(--color-neutral-400);margin-top:2px;">{{ weekAvg }}</div></div>
 <div class="seg" style="display:flex;flex:none;">
 <sc-for list="{{ chartOpts }}" as="c" hint-placeholder-count="2">
 <button class="seg-opt" onClick="{{ c.onClick }}" aria-label="{{ c.label }}" style="justify-content:center;width:40px;min-height:32px;background:{{ c.segBg }};color:{{ c.color }};border:0;border-left:{{ c.segDivider }};box-shadow:{{ c.segShadow }};font-size:16px;"><i class="{{ c.icon }}"></i></button>
@@ -215,10 +213,7 @@
 <div style="display:flex;gap:10px;margin-top:-4px;"><sc-for list="{{ week }}" as="d" hint-placeholder-count="7"><div style="flex:1;text-align:center;font-size:11px;color:{{ d.labelColor }};">{{ d.label }}</div></sc-for></div>
 <button class="btn btn-secondary" onClick="{{ openHistory }}" style="min-height:40px;font-size:13px;"><i class="ph ph-clock-counter-clockwise"></i>Week history</button>
 </div>
-<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
 <div class="card" style="padding:14px;box-shadow:var(--shadow-sm);"><div style="font-size:11px;color:var(--color-neutral-500);">To goal</div><div style="font-size:20px;font-weight:500;">{{ toGoal }} <span style="font-size:12px;color:var(--color-neutral-500);font-weight:400;">{{ unit }}</span></div></div>
-<div class="card" style="padding:14px;box-shadow:var(--shadow-sm);"><div style="font-size:11px;color:var(--color-neutral-500);">Days logged</div><div style="font-size:20px;font-weight:500;">74 <span style="font-size:12px;color:var(--color-neutral-500);font-weight:400;">of 84</span></div></div>
-</div>
 </div>
 </sc-if>
 
@@ -467,8 +462,12 @@
 <sc-for list="{{ histDays }}" as="d" hint-placeholder-count="7"><div style="flex:1;height:{{ d.h }};border-radius:4px 4px 2px 2px;background:{{ d.bg }};opacity:0.85;transition:height .4s ease;"></div></sc-for>
 </div>
 <div style="display:flex;gap:8px;margin-top:-6px;"><sc-for list="{{ histDays }}" as="d" hint-placeholder-count="7"><div style="flex:1;text-align:center;font-size:10px;color:var(--color-neutral-500);">{{ d.label }}</div></sc-for></div>
-<div style="font-size:11px;color:var(--color-neutral-500);">Week total {{ histTotal }} of {{ histWeekGoal }} kcal</div>
+<div style="font-size:11px;color:var(--color-neutral-500);">Week total {{ histTotal }} kcal · goal {{ histWeekGoal }}</div>
 </div>
+<sc-if value="{{ histEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:13px;color:var(--color-neutral-500);padding:4px 0;">Nothing logged this week.</div>
+</sc-if>
+<sc-if value="{{ histHasData }}" hint-placeholder-val="{{ true }}">
 <div style="display:flex;flex-direction:column;">
 <div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:4px;">Macros · daily avg</div>
 <sc-for list="{{ histMacros }}" as="n" hint-placeholder-count="3">
@@ -489,6 +488,7 @@
 </div>
 </sc-for>
 </div>
+</sc-if>
 <div style="font-size:11px;color:var(--color-neutral-500);text-wrap:pretty;">Percentages compare the week's daily average with your targets. Red is over target; green is at or under.</div>
 </div>
 </div>
@@ -686,7 +686,6 @@ const PRESETS = [
   {name:'Balanced',c:50,p:25,f:25},{name:'High protein',c:40,p:35,f:25},{name:'Low carb',c:25,p:35,f:40}
 ];
 const WEIGHTS = [84.2,84.0,83.9,83.5,83.6,83.1,82.8,82.9,82.4,82.2,81.9,81.8,81.6];
-const PAST_WEEK = [1980,2240,1870,2050,2310,1920];
 const KEY = 'tally-state-v1';
 const DATA_VERSION = 2;
 const fmt = n => Math.round(n).toLocaleString('en-US');
@@ -710,7 +709,7 @@ function initial() {
   return {
     entries: [], exercises: [],
     water: 0, goal: 2100, preset: 0, goalWeight: 78, weights: [], sex: 'Female', age: 34, activity: 1,
-    custom: []
+    custom: [], day: null, days: {}
   };
 }
 // Upgrades version 1 data: plain-number weigh-ins get dates a week apart, ending on anchor; exact sample data is dropped
@@ -737,6 +736,37 @@ function normWeights(list) {
   });
   return Object.keys(byDate).sort().map(date => ({date, kg: byDate[date]}));
 }
+// One finished day: totals plus a copy of each food and exercise, so later changes to saved foods don't alter history
+function daySnapshot(s) {
+  const entries = Array.isArray(s.entries) ? s.entries : [], exercises = Array.isArray(s.exercises) ? s.exercises : [];
+  if (!entries.length && !exercises.length && !s.water) return null;
+  const n = x => +x || 0;
+  const t = {kcal: 0, c: 0, p: 0, f: 0}, m = MK.map(() => 0), foods = [];
+  entries.forEach(e => {
+    const f = FMAP[e.food];
+    if (!f || !(e.s > 0)) return;
+    ['kcal','c','p','f'].forEach(k => t[k] += n(f[k]) * e.s);
+    (MICRO[e.food] || []).slice(0, MK.length).forEach((v, i) => m[i] += n(v) * e.s);
+    foods.push({name: String(f.name), serv: String(f.serv), kcal: typeof f.kcal === 'number' && isFinite(f.kcal) ? f.kcal : null,
+      c: n(f.c), p: n(f.p), f: n(f.f), s: e.s, meal: String(e.meal)});
+  });
+  return {kcal: Math.round(t.kcal), c: rnd(t.c), p: rnd(t.p), f: rnd(t.f),
+    ex: Math.round(exercises.reduce((a, x) => a + n(x.kcal), 0)), water: n(s.water), m: m.map(rnd), foods,
+    exercises: exercises.map(x => ({name: String(x.name), min: n(x.min), kcal: n(x.kcal)}))};
+}
+// Moves a finished day into history. Returns state changes, or null while the diary is on today (or a later date, if the clock went back)
+function rollDay(s, today) {
+  if (s.day === today) return null;
+  if (!isYmd(s.day)) return {day: today};
+  if (s.day > today) return null;
+  const days = Object.assign({}, s.days), snap = daySnapshot(s), old = days[s.day];
+  if (snap) days[s.day] = !old ? snap : Object.assign({}, snap, {
+    kcal: old.kcal + snap.kcal, c: rnd(old.c + snap.c), p: rnd(old.p + snap.p), f: rnd(old.f + snap.f),
+    ex: old.ex + snap.ex, water: old.water + snap.water,
+    m: snap.m.map((v, i) => rnd(v + ((old.m || [])[i] || 0))),
+    foods: (old.foods || []).concat(snap.foods), exercises: (old.exercises || []).concat(snap.exercises)});
+  return {day: today, days, entries: [], exercises: [], water: 0};
+}
 
 class Component extends DCLogic {
   constructor(p) {
@@ -754,15 +784,36 @@ class Component extends DCLogic {
     this.state.weights = normWeights(this.state.weights);
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
+    if (!this.state.days || typeof this.state.days !== 'object' || Array.isArray(this.state.days)) this.state.days = {};
+    // A new day starts on open; the result is saved straight away so the diary's date is fixed
+    const r = rollDay(this.state, ymd(new Date()));
+    if (r) { Object.assign(this.state, r); try { localStorage.setItem(KEY, JSON.stringify(this.savedData())); } catch (e) {} }
     this.videoRef = React.createRef();
     this.fileRef = React.createRef();
   }
   savedData() {
     let prev = null;
     try { prev = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom} = this.state;
+    const {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom,day,days} = this.state;
     // Fields the app doesn't use are kept as-is, so nothing in saved data is ever dropped
-    return Object.assign({}, prev && typeof prev === 'object' ? prev : {}, {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom, dataVersion: DATA_VERSION});
+    return Object.assign({}, prev && typeof prev === 'object' ? prev : {}, {entries,exercises,water,goal,preset,goalWeight,weights,sex,age,activity,weekChart,weightMode,custom,day,days, dataVersion: DATA_VERSION});
+  }
+  componentDidMount() {
+    this._onShow = () => { if (document.visibilityState === 'visible') this.checkDay(); };
+    document.addEventListener('visibilitychange', this._onShow);
+    window.addEventListener('pageshow', this._onShow);
+    this.armMidnight();
+  }
+  // Starts a new day while the app is open: when it comes back on screen and just after local midnight
+  checkDay() {
+    const r = rollDay(this.state, ymd(new Date()));
+    if (r) { this.setState(r); if (r.entries) this.flash('New day started'); }
+    this.armMidnight();
+  }
+  armMidnight() {
+    clearTimeout(this._midnight);
+    const now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+    this._midnight = setTimeout(() => this.checkDay(), next - now);
   }
   componentDidUpdate() {
     if (this._restoring) return;
@@ -792,12 +843,21 @@ class Component extends DCLogic {
     const list = (k, ok) => has(k, x => Array.isArray(x) && x.every(ok));
     const idx = n => x => Number.isInteger(x) && x >= 0 && x < n;
     const dated = w => obj(w) && isYmd(w.date) && num(w.kg) && w.kg > 0;
+    const food = f => obj(f) && str(f.name) && str(f.serv) && (num(f.kcal) || f.kcal === null) &&
+      ['c','p','f'].every(k => num(f[k])) && num(f.s) && f.s > 0 && str(f.meal);
+    const exRec = x => obj(x) && str(x.name) && num(x.min) && x.min >= 0 && num(x.kcal) && x.kcal >= 0;
+    const dayRec = v => obj(v) && ['kcal','c','p','f','ex','water'].every(k => num(v[k]) && v[k] >= 0) &&
+      (v.m === undefined || (Array.isArray(v.m) && v.m.length === MK.length && v.m.every(num))) &&
+      (v.foods === undefined || (Array.isArray(v.foods) && v.foods.every(food))) &&
+      (v.exercises === undefined || (Array.isArray(v.exercises) && v.exercises.every(exRec)));
     // Only entries is required; missing fields fall back to defaults on load
     return obj(b) && b.app === 'tally' && num(b.backupVersion) && !isNaN(Date.parse(b.exportedAt)) && obj(d) &&
       Array.isArray(d.entries) && list('entries', e => obj(e) && str(e.meal) && str(e.food) && num(e.s)) &&
       list('exercises', x => obj(x) && str(x.name) && num(x.min) && num(x.kcal)) &&
       has('dataVersion', x => Number.isInteger(x) && x >= 1) &&
       list('weights', d.dataVersion >= 2 ? dated : w => num(w) || dated(w)) &&
+      has('day', x => x === null || isYmd(x)) &&
+      has('days', x => obj(x) && Object.keys(x).every(isYmd) && Object.values(x).every(dayRec)) &&
       list('custom', f => obj(f) && str(f.name) && (num(f.kcal) || f.kcal === null) &&
         ['c','p','f'].every(k => num(f[k])) && Array.isArray(f.m) && f.m.every(num)) &&
       ['water','goal','goalWeight','age'].every(k => has(k, x => num(x) && x >= 0)) &&
@@ -833,7 +893,12 @@ class Component extends DCLogic {
     this._restoring = true;
     window.location.reload();
   }
-  componentWillUnmount() { this.stopCam(); }
+  componentWillUnmount() {
+    this.stopCam();
+    document.removeEventListener('visibilitychange', this._onShow);
+    window.removeEventListener('pageshow', this._onShow);
+    clearTimeout(this._midnight);
+  }
   async getDetector() {
     if (this._det) return this._det;
     let BD = window.BarcodeDetector;
@@ -964,7 +1029,7 @@ class Component extends DCLogic {
     const unit = lb ? 'lb' : 'kg';
     const ringMode = (this.props.summaryStyle ?? 'ring') !== 'bar';
     const set = o => () => this.setState(o);
-    const today = ymd(new Date()), TODAY = parseYmd(today);
+    const today = ymd(new Date()), TODAY = parseYmd(isYmd(st.day) ? st.day : today);
     const md = dt => dt.toLocaleDateString('en-US', {month:'short', day:'numeric'});
 
     let tot = {kcal:0,c:0,p:0,f:0};
@@ -1008,9 +1073,15 @@ class Component extends DCLogic {
     const wAxis = (!hasW ? [] : !span ? ['', wDay(wT[0]), '']
       : [wDay(wT[0]), span >= 2 * 864e5 ? wDay(wT[0] + span / 2) : '', wDay(wT[wT.length - 1])]).map(label => ({label}));
 
-    const weekVals = PAST_WEEK.concat(Math.round(tot.kcal));
-    const days = ['Th','Fr','Sa','Su','Mo','Tu','We'];
-    const maxV = 2800;
+    // Calories this week: the 6 days before the diary's day come from history (null = not logged), then today live
+    // A day counts for calorie stats when food was logged (water- or exercise-only days don't)
+    const ate = r => !!r && (r.kcal > 0 || (Array.isArray(r.foods) && r.foods.length > 0));
+    const todayLogged = st.entries.length > 0;
+    const weekDates = Array.from({length: 7}, (_, i) => addDays(TODAY, i - 6));
+    const weekVals = weekDates.map((dt, i) => i === 6 ? Math.round(tot.kcal) : ate(st.days[ymd(dt)]) ? st.days[ymd(dt)].kcal : null);
+    const weekLogged = weekVals.filter((v, i) => v != null && (i < 6 || todayLogged));
+    const wd = dt => dt.toLocaleDateString('en-US', {weekday:'short'}).slice(0, 2);
+    const maxV = Math.max(2800, st.goal * 1.2, ...weekLogged);
 
     const q = st.query.trim().toLowerCase();
     const scanned = st.custom.slice().reverse();
@@ -1069,27 +1140,26 @@ class Component extends DCLogic {
     const advisedGoalText = dir ? `to reach ${r1(gw)} ${unit}` : 'to maintain';
     const rate = lb ? '1 lb' : '0.5 kg';
 
-    // ---- Week history (synthetic past weeks, current week uses real data for today) ----
+    // ---- Week history: rolling 7-day weeks from saved days; the diary's day uses live totals ----
     const RED = 'oklch(0.72 0.15 25)', GREEN = 'oklch(0.8 0.13 155)';
-    const rnd = s => { const x = Math.sin(s * 9301.7 + 49297) * 233280; return x - Math.floor(x); };
     const microT = [
       ['Fiber','fib',male ? 38 : 25,'g'],['Sugar','sug',50,'g'],['Saturated fat','sat',20,'g'],
       ['Sodium','na',2300,'mg'],['Potassium','k',male ? 3400 : 2600,'mg'],['Cholesterol','chol',300,'mg'],
       ['Calcium','ca',1000,'mg'],['Iron','fe',male ? 8 : 18,'mg'],['Vitamin C','vc',male ? 90 : 75,'mg']
     ];
-    const wk = Math.max(0, Math.min(11, st.histWeek || 0));
-    const hDays = [];
-    for (let d = 0; d < 7; d++) {
-      const s = wk * 7 + d + 1;
-      const real = wk === 0 && d === 6;
-      const kcal = wk === 0 ? (d < 6 ? PAST_WEEK[d] : tot.kcal) : 2100 * (0.86 + rnd(s) * 0.28);
-      const cr = 0.42 + rnd(s + 0.3) * 0.14, pr = 0.2 + rnd(s + 0.6) * 0.1;
-      const day = real ? {kcal, c: tot.c, p: tot.p, f: tot.f} :
-        {kcal, c: kcal * cr / 4, p: kcal * pr / 4, f: kcal * (1 - cr - pr) / 9};
-      microT.forEach(([, k, t], j) => { day[k] = real ? mt[k] : t * (0.55 + rnd(s + j * 1.7) * 0.8); });
-      hDays.push(day);
-    }
-    const avg = k => hDays.reduce((a, x) => a + x[k], 0) / 7;
+    const dayKeys = Object.keys(st.days).filter(k => ate(st.days[k])).sort();
+    const maxWk = dayKeys.length ? Math.max(0, Math.floor(Math.round((TODAY - parseYmd(dayKeys[0])) / 864e5) / 7)) : 0;
+    const wk = Math.max(0, Math.min(maxWk, st.histWeek || 0));
+    const wStart = addDays(TODAY, -6 - wk * 7), wEnd = addDays(TODAY, -wk * 7);
+    const hDays = Array.from({length: 7}, (_, d) => {
+      const live = wk === 0 && d === 6, r = live ? null : st.days[ymd(addDays(wStart, d))];
+      if (live ? !todayLogged : !ate(r)) return null;
+      const day = live ? {kcal: tot.kcal, c: tot.c, p: tot.p, f: tot.f} : {kcal: r.kcal, c: r.c, p: r.p, f: r.f};
+      microT.forEach(([, k]) => { day[k] = live ? mt[k] : (r.m && r.m[MK.indexOf(k)]) || 0; });
+      return day;
+    });
+    const logged = hDays.filter(Boolean), nLog = logged.length;
+    const avg = k => nLog ? logged.reduce((a, x) => a + x[k], 0) / nLog : 0;
     const pctTag = (val, target) => {
       const p = Math.round((val / target - 1) * 100);
       const over = p > 0;
@@ -1097,23 +1167,19 @@ class Component extends DCLogic {
         tagBg: `color-mix(in srgb, ${over ? RED : GREEN} 14%, transparent)`};
     };
     const hRow = (label, val, target, unit) => Object.assign({label, val: unit === 'mg' ? fmt(val) : fmt(val), target: fmt(target), unit}, pctTag(val, target));
-    const wStart = addDays(TODAY, -6 - wk * 7), wEnd = addDays(TODAY, -wk * 7);
-    const histKcal = avg('kcal');
-    const histMaxV = 2800;
+    const histMaxV = Math.max(2800, st.goal * 1.2, ...logged.map(x => x.kcal));
     const hist = {
       histWeekLabel: `${md(wStart)} – ${md(wEnd)}`,
-      histWeekSub: wk === 0 ? 'This week' : wk === 1 ? 'Last week' : `${wk} weeks ago`,
-      histPrev: () => this.setState({histWeek: Math.min(11, wk + 1)}),
+      histWeekSub: `${wk === 0 ? 'This week' : wk === 1 ? 'Last week' : `${wk} weeks ago`} · ${nLog} of 7 days logged`,
+      histPrev: () => this.setState({histWeek: Math.min(maxWk, wk + 1)}),
       histNext: () => this.setState({histWeek: Math.max(0, wk - 1)}),
-      histPrevOpacity: wk >= 11 ? '0.35' : '1', histNextOpacity: wk === 0 ? '0.35' : '1',
-      histCal: hRow('Calories', histKcal, st.goal, 'kcal'),
-      histTotal: fmt(hDays.reduce((a, x) => a + x.kcal, 0)), histWeekGoal: fmt(st.goal * 7),
-      histDays: hDays.map((x, i) => {
-        const over = x.kcal > st.goal;
-        return {h: Math.max(x.kcal / histMaxV * 100, 3) + '%', bg: over ? RED : GREEN,
-          label: addDays(wStart, i).toLocaleDateString('en-US', {weekday:'short'}).slice(0, 2)};
-      }),
+      histPrevOpacity: wk >= maxWk ? '0.35' : '1', histNextOpacity: wk === 0 ? '0.35' : '1',
+      histCal: nLog ? hRow('Calories', avg('kcal'), st.goal, 'kcal') : {val: '—', target: fmt(st.goal), unit: 'kcal', pctText: '', tagColor: 'transparent', tagBg: 'transparent'},
+      histTotal: fmt(logged.reduce((a, x) => a + x.kcal, 0)), histWeekGoal: fmt(st.goal * nLog),
+      histDays: hDays.map((x, i) => ({h: x ? Math.max(x.kcal / histMaxV * 100, 3) + '%' : '0%',
+        bg: x && x.kcal > st.goal ? RED : GREEN, label: wd(addDays(wStart, i))})),
       histGoalY: (st.goal / histMaxV * 100) + '%',
+      histEmpty: nLog === 0, histHasData: nLog > 0,
       histMacros: [hRow('Carbohydrates', avg('c'), mg.c, 'g'), hRow('Protein', avg('p'), mg.p, 'g'), hRow('Fat', avg('f'), mg.f, 'g')],
       histMicros: microT.map(([l, k, t, u]) => hRow(l, avg(k), t, u)),
       openHistory: set({sheet:'history', histWeek:0}), sheetHist: st.sheet === 'history'
@@ -1216,13 +1282,13 @@ class Component extends DCLogic {
       hasWeights: hasW, noWeights: !hasW,
       weightPath: path, weightArea: path + ` L320 150 L0 150 Z`, lastX: last[0], lastY: last[1],
       goalLineY: yOf(gw), goalLabelY: yOf(gw) - 5, goalWeightLabel: `Goal ${r1(gw)}`,
-      week: weekVals.map((v, i) => ({label: days[i], h: Math.max(v / maxV * 100, 3) + '%',
+      week: weekVals.map((v, i) => ({label: wd(weekDates[i]), h: v == null ? '0%' : Math.max(v / maxV * 100, 3) + '%',
         bg: i === 6 ? 'var(--color-accent)' : v > st.goal ? 'var(--color-neutral-600)' : 'var(--color-accent-700)',
         shadow: i === 6 ? '0 0 14px color-mix(in srgb, var(--color-accent) 45%, transparent)' : 'none',
-        labelColor: i === 6 ? 'var(--color-accent)' : 'var(--color-neutral-500)'})),
+        labelColor: i === 6 ? 'var(--color-accent)' : v == null ? 'var(--color-neutral-700)' : 'var(--color-neutral-500)'})),
       ...(() => {
         const colW = (320 - 60) / 7, yv = v => 130 - Math.min(v / maxV, 1) * 130;
-        const P = weekVals.map((v, i) => [i * (colW + 10) + colW / 2, yv(v)]);
+        const P = weekVals.map((v, i) => v == null || (i === 6 && !todayLogged) ? null : [i * (colW + 10) + colW / 2, yv(v), i === 6]).filter(Boolean);
         const d = P.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
         const line = (st.weekChart || 'bar') === 'line';
         const opt = (id, label, icon, i) => {
@@ -1233,12 +1299,12 @@ class Component extends DCLogic {
             segShadow: on ? 'inset 0 0 0 1px var(--color-accent)' : 'none', segDivider: i ? '1px solid var(--color-divider)' : '0'};
         };
         return {weekLine: line, weekBar: !line, weekPath: d,
-          weekArea: d + ` L${P[6][0].toFixed(1)} 130 L${P[0][0].toFixed(1)} 130 Z`,
+          weekArea: P.length ? d + ` L${P[P.length - 1][0].toFixed(1)} 130 L${P[0][0].toFixed(1)} 130 Z` : '',
           weekGoalY: yv(st.goal),
-          weekPts: P.map((p, i) => ({x: p[0], y: p[1], r: i === 6 ? 4.5 : 3, fill: i === 6 ? 'var(--color-accent)' : 'var(--color-surface)'})),
+          weekPts: P.map(p => ({x: p[0], y: p[1], r: p[2] ? 4.5 : 3, fill: p[2] ? 'var(--color-accent)' : 'var(--color-surface)'})),
           chartOpts: [opt('bar', 'Bar graph', 'ph-chart-bar', 0), opt('line', 'Line graph', 'ph-chart-line', 1)]};
       })(),
-      weekAvg: fmt(weekVals.reduce((a, b) => a + b, 0) / 7), goalBarY: (st.goal / maxV * 100) + '%',
+      weekAvg: weekLogged.length ? `Avg ${fmt(weekLogged.reduce((a, b) => a + b, 0) / weekLogged.length)} · ${weekLogged.length} day${weekLogged.length === 1 ? '' : 's'}` : 'No days logged yet', goalBarY: (st.goal / maxV * 100) + '%',
       goalDown: () => this.setState({goal: Math.max(1200, st.goal - 50)}),
       goalUp: () => this.setState({goal: Math.min(4000, st.goal + 50)}),
       presets: PRESETS.map((p, i) => ({name:p.name, split:`${p.c}% carbs · ${p.p}% protein · ${p.f}% fat`,
@@ -1327,7 +1393,7 @@ class Component extends DCLogic {
       onRestoreFile: e => this.readRestoreFile(e),
       restoreOpen: !!st.restore,
       restoreDate: st.restore ? new Date(st.restore.exportedAt).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}) : '',
-      restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins and ${(st.restore.data.custom || []).length} saved foods.` : '',
+      restoreSummary: st.restore ? `Backup contains ${st.restore.data.entries.length} food entries, ${(st.restore.data.exercises || []).length} exercises, ${(st.restore.data.weights || []).length} weigh-ins, ${(st.restore.data.custom || []).length} saved foods and ${Object.keys(st.restore.data.days || {}).length} days of history.` : '',
       confirmRestore: () => this.confirmRestore(),
       cancelRestore: () => this.setState({restore: null}),
       ...hist, ...wHist, ...wConfirm,
