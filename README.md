@@ -10,7 +10,7 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 
 - Tracks daily, weekly, monthly and yearly macro and micro nutrients, hydration, weight, and workouts.
 - Estimates daily macro and micro nutrient needs based off age, height, weight, and activity level. 
-- Search a built-in list of common foods (only barcode lookups use the online database).
+- Search built-in foods and your own; add a free USDA key in Goals to also search USDA FoodData Central (picked foods are saved for later).
 - Add your own food from the search screen; it's saved for later searches and included in backups.
 - Scan food barcodes with your camera (or type the number) to lookup nutrient data.
 - Works offline-style from your home screen (Add to Home Screen)
@@ -28,6 +28,10 @@ somewhere private and don't share them.
 When you scan or type a barcode, only that barcode number is sent to
 [Open Food Facts](https://world.openfoodfacts.org/), a free public food database,
 to look up nutrition info.
+
+If you add a USDA key, your search words and the key are sent to
+[USDA FoodData Central](https://fdc.nal.usda.gov/) when you press Search.
+The key is stored only on this device and isn't included in backups.
 
 ## Built with
 
