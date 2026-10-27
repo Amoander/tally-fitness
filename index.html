@@ -290,6 +290,19 @@
 <button class="btn btn-secondary btn-icon" onClick="{{ gwUp }}" style="width:44px;height:44px;border-radius:50%;"><i class="ph ph-plus"></i></button>
 </div>
 </div>
+<div class="card" style="padding:16px;gap:12px;box-shadow:var(--shadow-sm);">
+<span class="card-kicker">Online food search</span>
+<div style="font-size:12px;color:var(--color-neutral-500);text-wrap:pretty;">Search the USDA food database by name. Get a free key at <a href="https://api.data.gov/signup/" target="_blank" rel="noopener" style="color:var(--color-accent-300);">api.data.gov/signup</a> and paste it here. It’s saved only on this device and isn’t included in backups.</div>
+<sc-if value="{{ usdaNoKey }}" hint-placeholder-val="{{ true }}">
+<input class="input" type="text" autoComplete="off" spellCheck="false" aria-label="USDA API key" placeholder="Paste your USDA key" value="{{ usdaDraft }}" onChange="{{ onUsdaDraft }}" onBlur="{{ onUsdaBlur }}" onKeyDown="{{ onEnterBlur }}" style="min-height:44px;background:var(--color-bg);">
+<sc-if value="{{ usdaErr }}" hint-placeholder-val="{{ false }}">
+<div style="font-size:13px;color:var(--color-neutral-300);text-wrap:pretty;">{{ usdaErr }}</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ usdaHasKey }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><div style="font-size:13px;display:flex;align-items:center;gap:6px;"><i class="ph-fill ph-check-circle" style="font-size:16px;color:var(--color-accent);"></i>Key saved · ends …{{ usdaKeyTail }}</div><button class="btn btn-secondary" onClick="{{ removeUsdaKey }}" style="min-height:40px;">Remove</button></div>
+</sc-if>
+</div>
 <div class="card" style="padding:14px;gap:10px;box-shadow:var(--shadow-sm);">
 <div><div style="font-size:15px;font-weight:500;">Your data</div><div style="font-size:12px;color:var(--color-neutral-500);text-wrap:pretty;">Your data is saved only on this device. Save a backup file to keep it safe or move it to a new phone.</div></div>
 <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
@@ -342,7 +355,7 @@
 <div style="padding:4px 18px 10px;display:flex;flex-direction:column;gap:12px;flex:none;">
 <div style="display:flex;align-items:center;justify-content:space-between;"><div style="font-size:18px;font-weight:500;">Add to {{ meal }}</div><button class="btn btn-ghost btn-icon" onClick="{{ closeSheet }}" style="color:var(--color-neutral-400);"><i class="ph ph-x" style="font-size:18px;"></i></button></div>
 <div style="display:flex;gap:8px;">
-<div style="position:relative;flex:1;"><i class="ph ph-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--color-neutral-500);"></i><input class="input" placeholder="Search foods" value="{{ query }}" onChange="{{ onQuery }}" style="padding-left:32px;min-height:44px;background:var(--color-bg);"></div>
+<div style="position:relative;flex:1;"><i class="ph ph-magnifying-glass" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--color-neutral-500);"></i><input class="input" placeholder="Search foods" enterKeyHint="search" value="{{ query }}" onChange="{{ onQuery }}" onKeyDown="{{ onQueryKey }}" style="padding-left:32px;min-height:44px;background:var(--color-bg);"></div>
 <button class="btn btn-secondary btn-icon" onClick="{{ onScan }}" style="width:44px;height:44px;" aria-label="Scan barcode"><i class="ph ph-barcode" style="font-size:20px;"></i></button>
 </div>
 <div style="display:flex;gap:6px;">
@@ -364,6 +377,24 @@
 </sc-for>
 <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
 <div style="padding:30px 10px;text-align:center;font-size:13px;color:var(--color-neutral-500);">No foods match “{{ query }}”.</div>
+</sc-if>
+<sc-if value="{{ usdaBtn }}" hint-placeholder-val="{{ false }}">
+<button class="btn btn-secondary" onClick="{{ onUsdaSearch }}" style="width:100%;min-height:44px;margin-top:8px;opacity:{{ usdaBtnOpacity }};"><i class="ph ph-globe"></i>{{ usdaBtnLabel }}</button>
+</sc-if>
+<sc-if value="{{ usdaHead }}" hint-placeholder-val="{{ false }}">
+<div style="padding:14px 8px 4px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--color-neutral-500);">From USDA FoodData Central</div>
+<sc-if value="{{ usdaMsg }}" hint-placeholder-val="{{ false }}">
+<div style="padding:6px 8px;font-size:13px;color:var(--color-neutral-400);text-wrap:pretty;">{{ usdaMsg }}</div>
+</sc-if>
+<sc-if value="{{ usdaNeedKey }}" hint-placeholder-val="{{ false }}">
+<button class="btn btn-ghost" onClick="{{ usdaGoGoals }}" style="color:var(--color-accent-300);">Go to Goals<i class="ph ph-caret-right"></i></button>
+</sc-if>
+<sc-for list="{{ usdaHits }}" as="f" hint-placeholder-count="3">
+<button onClick="{{ f.onOpen }}" style="width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:12px 8px;border-radius:var(--radius-md);">
+<div style="flex:1;min-width:0;"><div style="font-size:14px;">{{ f.name }}</div><div style="font-size:11px;color:var(--color-neutral-500);">{{ f.sub }}</div></div>
+<div style="font-size:13px;color:var(--color-neutral-300);flex:none;">{{ f.kcal }} kcal</div>
+</button>
+</sc-for>
 </sc-if>
 <button class="btn btn-secondary" onClick="{{ openOwn }}" style="width:100%;min-height:44px;margin-top:8px;"><i class="ph ph-plus"></i>Add your own food</button>
 </div>
@@ -647,6 +678,27 @@ const SCAN_FORMATS = ['ean_13','ean_8','upc_a','upc_e'];
 const rnd = n => Math.round(n * 10) / 10;
 // Scanned and user-added foods are saved in state.custom and registered into FMAP/MICRO so entries resolve like built-ins
 function registerFood(f) { FMAP[f.id] = f; MICRO[f.id] = f.m; }
+const USDA_URL = 'https://api.nal.usda.gov/fdc/v1/foods/search';
+// The USDA key is stored under its own name so it never ends up in saved data or backups
+const USDA_KEY = 'tally-usda-key';
+// USDA search hits give nutrients per 100 g; branded foods with a gram or ml serving are converted per serving
+function usdaFood(x) {
+  if (!x || !x.fdcId || !x.description) return null;
+  const nv = {};
+  (Array.isArray(x.foodNutrients) ? x.foodNutrients : []).forEach(n => { if (n && typeof n.value === 'number' && isFinite(n.value)) nv[n.nutrientId] = n; });
+  const v = id => nv[id] ? nv[id].value : null;
+  const cap = s => s && s === s.toUpperCase() ? s.charAt(0) + s.slice(1).toLowerCase() : s;
+  const ss = +x.servingSize, su = String(x.servingSizeUnit || '').toLowerCase();
+  const unit = su === 'g' || su === 'grm' ? 'g' : su === 'ml' || su === 'mlt' ? 'ml' : '';
+  const perServ = ss > 0 && !!unit, k = perServ ? ss / 100 : 1;
+  const house = String(x.householdServingFullText || '').trim(), amt = `${rnd(ss)} ${unit}`;
+  const kc = nv[1008] && /kcal/i.test(nv[1008].unitName) ? nv[1008].value : v(2047) ?? v(2048) ?? (v(1062) != null ? v(1062) / 4.184 : null);
+  const desc = cap(String(x.description).trim()), brand = cap(String(x.brandName || x.brandOwner || '').trim());
+  const g = id => rnd((+v(id) || 0) * k);
+  return {id: 'fdc' + x.fdcId, name: (brand && !desc.toLowerCase().includes(brand.toLowerCase()) ? brand + ' ' : '') + desc, brand,
+    serv: perServ ? (house ? `${house} (${amt})` : amt) : '100 g', kcal: kc == null ? null : Math.round(kc * k),
+    c: g(1005), p: g(1003), f: g(1004), m: [1079, 2000, 1258, 1093, 1092, 1253, 1087, 1089, 1162].map(g)};
+}
 // Per serving: fiber g, sugar g, sat fat g, sodium mg, potassium mg, cholesterol mg, calcium mg, iron mg, vitamin C mg
 const MK = ['fib','sug','sat','na','k','chol','ca','fe','vc'];
 const MICRO = {
@@ -779,8 +831,10 @@ class Component extends DCLogic {
     if (old) { saved.weights = normWeights(saved.weights); try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} }
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null
+      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null,
+      usda:null, usdaDraft:'', usdaErr:''
     });
+    try { this.state.usdaKey = localStorage.getItem(USDA_KEY) || ''; } catch (e) { this.state.usdaKey = ''; }
     this.state.weights = normWeights(this.state.weights);
     if (!Array.isArray(this.state.custom)) this.state.custom = [];
     this.state.custom.forEach(registerFood);
@@ -994,6 +1048,62 @@ class Component extends DCLogic {
     this.setState(st => ({custom: st.custom.concat(f), own: null, sel: f.id, servings: 1, query: ''}));
     this.flash('Saved ' + name);
   }
+  // Online search runs only on Search/Enter: results are cached per query, one request at a time, at most 10 a minute
+  async searchOnline() {
+    const q = this.state.query.trim(), key = q.toLowerCase();
+    if (q.length < 2) return;
+    const show = o => this.setState({usda: Object.assign({q, busy: false, done: false, needKey: false, msg: '', hits: []}, o)});
+    const found = hits => show({hits, done: true, msg: hits.length ? '' : 'No matches in USDA FoodData Central.'});
+    if (!this.state.usdaKey) return show({needKey: true, msg: 'Add a USDA key in Goals to search online.'});
+    this._usdaCache = this._usdaCache || {};
+    if (this._usdaCache[key]) return found(this._usdaCache[key]);
+    if (this._usdaBusy) return;
+    const now = Date.now();
+    this._usdaTimes = (this._usdaTimes || []).filter(t => now - t < 60000);
+    if (this._usdaTimes.length >= 10) return show({msg: `Too many searches. Try again in ${Math.ceil((60000 - (now - this._usdaTimes[0])) / 1000)} s.`});
+    if (navigator.onLine === false) return show({msg: 'You’re offline. Online search needs a connection.'});
+    this._usdaBusy = true;
+    this._usdaTimes.push(now);
+    show({busy: true, msg: 'Searching USDA…'});
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 15000);
+    let hits = null, msg = 'USDA didn’t respond. Try again in a minute.';
+    try {
+      const r = await fetch(`${USDA_URL}?api_key=${encodeURIComponent(this.state.usdaKey)}&query=${encodeURIComponent(q)}&pageSize=20&dataType=Foundation,SR%20Legacy,Survey%20(FNDDS),Branded`, {signal: ctl.signal});
+      if (r.status === 403) msg = 'USDA didn’t accept your key. Check it in Goals.';
+      else if (r.status === 429) msg = 'USDA search limit reached. Try again later.';
+      else if (r.ok) {
+        const j = await r.json();
+        hits = this._usdaCache[key] = (j && Array.isArray(j.foods) ? j.foods : []).map(usdaFood).filter(Boolean).slice(0, 20);
+      }
+    } catch (e) {}
+    clearTimeout(timer);
+    this._usdaBusy = false;
+    // A late answer stays in the cache but isn't shown if the sheet closed or the search changed
+    const st = this.state;
+    if (st.sheet !== 'food' || st.query.trim() !== q) { if (st.usda && st.usda.busy) this.setState({usda: null}); return; }
+    hits ? found(hits) : show({msg});
+  }
+  // Picked USDA foods are saved to My foods like scanned ones, then open the normal detail screen
+  pickUsda(hit) {
+    if (FMAP[hit.id]) return this.setState({sel: hit.id, servings: 1});
+    const {brand, ...f} = hit;
+    registerFood(f);
+    this.setState(st => ({custom: st.custom.filter(x => x.id !== f.id).concat(f), sel: f.id, servings: 1}));
+  }
+  saveUsdaKey() {
+    const k = String(this.state.usdaDraft || '').trim();
+    if (!k) return this.setState({usdaDraft: '', usdaErr: ''});
+    if (!/^[A-Za-z0-9]{20,64}$/.test(k)) return this.setState({usdaErr: 'That doesn’t look like a USDA key.'});
+    try { localStorage.setItem(USDA_KEY, k); } catch (e) {}
+    this._usdaCache = {};
+    this.setState({usdaKey: k, usdaDraft: '', usdaErr: '', usda: null});
+    this.flash('USDA key saved');
+  }
+  removeUsdaKey() {
+    try { localStorage.removeItem(USDA_KEY); } catch (e) {}
+    this._usdaCache = {};
+    this.setState({usdaKey: '', usda: null});
+  }
   flash(msg) {
     clearTimeout(this._t);
     this.setState({toast: msg});
@@ -1052,7 +1162,7 @@ class Component extends DCLogic {
       const kcal = st.entries.filter(e => e.meal === m.name && FMAP[e.food]).reduce((a, e) => a + FMAP[e.food].kcal * e.s, 0);
       return {name:m.name, icon:m.icon, items, kcalFmt: fmt(kcal),
         summary: items.length ? items.map(i => i.name).join(', ') : 'Nothing logged yet',
-        onAdd: set({sheet:'food', meal:m.name, sel:null, query:'', own:null})};
+        onAdd: set({sheet:'food', meal:m.name, sel:null, query:'', own:null, usda:null})};
     });
 
     const tab = (id, label, icon) => ({label, icon: (st.tab === id ? 'ph-fill ' : 'ph ') + icon,
@@ -1318,12 +1428,12 @@ class Component extends DCLogic {
       gwDown: () => this.stepGoalWeight(-1, lb),
       gwUp: () => this.stepGoalWeight(1, lb),
       resetDay: () => { this.setState({entries: [], exercises: [], water: 0}); this.flash('Diary cleared'); },
-      hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null, own:null}); },
+      hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null, own:null, usda:null}); },
       openQuick: set({sheet:'quick'}), openExercise: set({sheet:'ex'}),
       openWeight: set({sheet:'weight', wDraft:null, wText:null}),
       sheetQuick: st.sheet === 'quick', sheetFood: st.sheet === 'food', sheetEx: st.sheet === 'ex', sheetWeight: st.sheet === 'weight',
       quick: [
-        {label:'Food', sub:'Search or scan', icon:'ph ph-fork-knife', onClick: set({sheet:'food', sel:null, query:'', own:null})},
+        {label:'Food', sub:'Search or scan', icon:'ph ph-fork-knife', onClick: set({sheet:'food', sel:null, query:'', own:null, usda:null})},
         {label:'Exercise', sub:'Cardio or strength', icon:'ph ph-sneaker-move', onClick: set({sheet:'ex'})},
         {label:'Water', sub:'+1 glass (250 ml)', icon:'ph ph-drop', onClick: () => { this.setState({sheet:null, water: Math.min(8, st.water + 1)}); this.flash('Added 250 ml water'); }},
         {label:'Weight', sub:'Log today', icon:'ph ph-scales', onClick: set({sheet:'weight', wDraft:null})}
@@ -1340,6 +1450,19 @@ class Component extends DCLogic {
       noResults: q && results.length === 0,
       foodResults: results.map(f => ({name:f.name, serv:f.serv, kcal:f.kcal,
         onOpen: set({sel:f.id, servings:1}), onQuick: () => this.addFood(f.id, 1, st.meal)})),
+      onQueryKey: e => { if (e.key === 'Enter') this.searchOnline(); },
+      ...(() => {
+        // Online results belong to the words they were searched with; foods already in the local list are left out
+        const u = q && st.usda && st.usda.q.toLowerCase() === q ? st.usda : null;
+        const local = new Set(results.map(f => f.id));
+        const hits = u ? u.hits.filter(f => !local.has(f.id)) : [];
+        return {usdaBtn: !!q && !(u && u.done), usdaBtnLabel: `Search USDA for “${st.query.trim()}”`,
+          usdaBtnOpacity: st.usda && st.usda.busy ? 0.5 : 1, onUsdaSearch: () => this.searchOnline(),
+          usdaHead: !!u && (hits.length > 0 || !!u.msg), usdaMsg: u ? u.msg : '', usdaNeedKey: !!u && u.needKey,
+          usdaGoGoals: set({sheet:null, sel:null, own:null, usda:null, tab:'goals'}),
+          usdaHits: hits.map(f => ({name: f.name, sub: [f.brand, f.serv === '100 g' ? 'per 100 g' : f.serv].filter(Boolean).join(' · '),
+            kcal: f.kcal == null ? '—' : f.kcal, onOpen: () => this.pickUsda(f)}))};
+      })(),
       mealChips: MEALS.map((m, i) => {
         const on = m.name === st.meal;
         return {name:m.name, onClick: set({meal:m.name}),
@@ -1378,6 +1501,10 @@ class Component extends DCLogic {
       onGwInput: e => this.setState({gwText: e.target.value}),
       onGwBlur: () => { const k = st.gwText == null ? null : this.parseKg(st.gwText, lb); this.setState(k == null ? {gwText: null} : {goalWeight: k, gwText: null}); },
       onEnterBlur: e => { if (e.key === 'Enter') e.target.blur(); },
+      usdaHasKey: !!st.usdaKey, usdaNoKey: !st.usdaKey, usdaKeyTail: (st.usdaKey || '').slice(-4),
+      usdaDraft: st.usdaDraft, usdaErr: st.usdaErr,
+      onUsdaDraft: e => this.setState({usdaDraft: e.target.value, usdaErr: ''}),
+      onUsdaBlur: () => this.saveUsdaKey(), removeUsdaKey: () => this.removeUsdaKey(),
       saveWeight: () => {
         const typed = st.wText == null ? null : this.parseKg(st.wText, lb);
         const kg = typed ?? wBase;
