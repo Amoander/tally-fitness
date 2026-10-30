@@ -119,10 +119,12 @@
 <sc-if value="{{ isDiary }}" hint-placeholder-val="{{ false }}">
 <div style="display:flex;flex-direction:column;gap:12px;">
 <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0 2px;">
-<button class="btn btn-ghost btn-icon" style="color:var(--color-text);"><i class="ph ph-caret-left" style="font-size:18px;"></i></button>
-<div style="text-align:center;"><div style="font-size:17px;font-weight:500;">Diary</div><div style="font-size:12px;color:var(--color-neutral-500);">{{ dateLabel }}</div></div>
-<button class="btn btn-ghost btn-icon" style="color:var(--color-text);"><i class="ph ph-caret-right" style="font-size:18px;"></i></button>
+<button class="btn btn-ghost btn-icon" onClick="{{ diaryPrev }}" aria-label="Previous day" style="color:var(--color-text);"><i class="ph ph-caret-left" style="font-size:18px;"></i></button>
+<div style="text-align:center;"><div style="font-size:17px;font-weight:500;">Diary</div><div style="font-size:12px;color:var(--color-neutral-500);">{{ diaryDateLabel }}</div></div>
+<button class="btn btn-ghost btn-icon" onClick="{{ diaryNext }}" aria-label="Next day" style="color:var(--color-text);opacity:{{ diaryNextOpacity }};"><i class="ph ph-caret-right" style="font-size:18px;"></i></button>
 </div>
+<sc-if value="{{ diaryLive }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:12px;">
 <div class="card" style="flex-direction:row;justify-content:space-between;align-items:center;padding:12px 14px;box-shadow:var(--shadow-sm);text-align:center;">
 <div><div style="font-size:15px;font-weight:500;">{{ goalFmt }}</div><div style="font-size:10px;color:var(--color-neutral-500);">Goal</div></div>
 <span style="color:var(--color-neutral-600);">−</span>
@@ -156,6 +158,54 @@
 </sc-for>
 <div style="padding:4px 10px 10px;"><button class="btn btn-ghost" onClick="{{ openExercise }}" style="font-size:13px;"><i class="ph ph-plus"></i>Add exercise</button></div>
 </div>
+</div>
+</sc-if>
+<sc-if value="{{ diaryPast }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px;">
+<button class="btn btn-secondary" onClick="{{ diaryToday }}" style="min-height:44px;"><i class="ph ph-arrow-u-up-left"></i>Back to today</button>
+<div class="card" style="padding:12px 14px;gap:10px;box-shadow:var(--shadow-sm);">
+<div style="display:flex;justify-content:space-around;text-align:center;">
+<div><div style="font-size:15px;font-weight:500;">{{ pastFoodFmt }}</div><div style="font-size:10px;color:var(--color-neutral-500);">Food</div></div>
+<div><div style="font-size:15px;font-weight:500;">{{ pastExFmt }}</div><div style="font-size:10px;color:var(--color-neutral-500);">Exercise</div></div>
+<sc-for list="{{ pastMacros }}" as="pm" hint-placeholder-count="3"><div><div style="font-size:15px;font-weight:500;">{{ pm.val }}</div><div style="font-size:10px;color:var(--color-neutral-500);">{{ pm.label }}</div></div></sc-for>
+</div>
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-neutral-400);"><i class="ph ph-drop" style="color:var(--color-accent-400);"></i>Water: {{ pastWater }}</div>
+</div>
+<sc-if value="{{ pastNoFoods }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px;color:var(--color-neutral-500);text-align:center;">Only totals were saved for this day.</div></sc-if>
+<sc-if value="{{ pastHasFoods }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:12px;">
+<sc-for list="{{ pastMeals }}" as="pml" hint-placeholder-count="4">
+<div class="card" style="padding:0;gap:0;box-shadow:var(--shadow-sm);overflow:hidden;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px 10px;"><span style="font-size:15px;font-weight:500;">{{ pml.name }}</span><span style="font-size:14px;font-weight:500;">{{ pml.kcalFmt }}</span></div>
+<sc-for list="{{ pml.items }}" as="pit" hint-placeholder-count="2">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(to right,transparent,color-mix(in srgb,var(--color-text) 8%,transparent) 48px,color-mix(in srgb,var(--color-text) 8%,transparent) calc(100% - 48px),transparent) no-repeat top / 100% 1px;">
+<div style="flex:1;min-width:0;"><div style="font-size:13px;">{{ pit.name }}</div><div style="font-size:11px;color:var(--color-neutral-500);">{{ pit.detail }}</div></div>
+<div style="font-size:13px;color:var(--color-neutral-300);">{{ pit.kcalFmt }}</div>
+</div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ pastHasEx }}" hint-placeholder-val="{{ true }}">
+<div class="card" style="padding:0;gap:0;box-shadow:var(--shadow-sm);overflow:hidden;">
+<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px 10px;"><span style="font-size:15px;font-weight:500;">Exercise</span><span style="font-size:14px;font-weight:500;color:var(--color-accent-300);">{{ pastExFmt }}</span></div>
+<sc-for list="{{ pastEx }}" as="pex" hint-placeholder-count="1">
+<div style="display:flex;align-items:center;gap:10px;padding:9px 14px;background:linear-gradient(to right,transparent,color-mix(in srgb,var(--color-text) 8%,transparent) 48px,color-mix(in srgb,var(--color-text) 8%,transparent) calc(100% - 48px),transparent) no-repeat top / 100% 1px;">
+<div style="flex:1;"><div style="font-size:13px;">{{ pex.name }}</div><div style="font-size:11px;color:var(--color-neutral-500);">{{ pex.detail }}</div></div>
+<div style="font-size:13px;color:var(--color-neutral-300);">{{ pex.kcalFmt }}</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ diaryEmpty }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:12px;">
+<button class="btn btn-secondary" onClick="{{ diaryToday }}" style="min-height:44px;"><i class="ph ph-arrow-u-up-left"></i>Back to today</button>
+<div class="card" style="padding:28px 14px;box-shadow:var(--shadow-sm);text-align:center;font-size:13px;color:var(--color-neutral-500);">Nothing logged on this day.</div>
+</div>
+</sc-if>
 </div>
 </sc-if>
 
@@ -832,7 +882,7 @@ class Component extends DCLogic {
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
       act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null,
-      usda:null, usdaDraft:'', usdaErr:''
+      usda:null, usdaDraft:'', usdaErr:'', diaryView:null
     });
     try { this.state.usdaKey = localStorage.getItem(USDA_KEY) || ''; } catch (e) { this.state.usdaKey = ''; }
     this.state.weights = normWeights(this.state.weights);
@@ -1166,7 +1216,35 @@ class Component extends DCLogic {
     });
 
     const tab = (id, label, icon) => ({label, icon: (st.tab === id ? 'ph-fill ' : 'ph ') + icon,
-      color: st.tab === id ? 'var(--color-accent)' : 'var(--color-neutral-500)', onClick: set({tab:id})});
+      color: st.tab === id ? 'var(--color-accent)' : 'var(--color-neutral-500)', onClick: set({tab:id, diaryView:null})});
+
+    // Diary day being viewed: null is the diary's current day; a past date is read-only from history
+    const curDay = ymd(TODAY);
+    const viewDay = isYmd(st.diaryView) && st.diaryView < curDay ? st.diaryView : null, past = !!viewDay;
+    const pr0 = past ? st.days[viewDay] : null, pRec = pr0 && typeof pr0 === 'object' ? pr0 : null;
+    const pNum = x => +x || 0;
+    const pFoods = pRec && Array.isArray(pRec.foods) ? pRec.foods.filter(x => x && typeof x === 'object') : null;
+    const pFoodKcal = x => typeof x.kcal === 'number' && isFinite(x.kcal) ? x.kcal * pNum(x.s) : null;
+    const pMealNames = MEALS.map(m => m.name).concat([...new Set((pFoods || []).map(x => String(x.meal)))].filter(n => !MEALS.some(m => m.name === n)));
+    const pastMeals = !pFoods ? [] : pMealNames.map(name => {
+      const list = pFoods.filter(x => String(x.meal) === name);
+      return {name, kcalFmt: fmt(list.reduce((a, x) => a + (pFoodKcal(x) || 0), 0)), list,
+        items: list.map(x => { const k = pFoodKcal(x); return {name: String(x.name), detail: `${r1(pNum(x.s))} × ${x.serv ?? ''}`, kcalFmt: k == null ? '—' : fmt(k)}; })};
+    }).filter((m, i) => i < MEALS.length || m.list.length);
+    const pastEx = pRec && Array.isArray(pRec.exercises) ? pRec.exercises.filter(x => x && typeof x === 'object')
+      .map(x => ({name: String(x.name), detail: `${pNum(x.min)} min`, kcalFmt: fmt(pNum(x.kcal))})) : [];
+    const pWater = pRec ? pNum(pRec.water) : 0;
+    const diary = {
+      diaryDateLabel: parseYmd(viewDay || curDay).toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}),
+      diaryPrev: () => this.setState({diaryView: ymd(addDays(parseYmd(viewDay || curDay), -1))}),
+      diaryNext: () => { if (!past) return; const n = ymd(addDays(parseYmd(viewDay), 1)); this.setState({diaryView: n >= curDay ? null : n}); },
+      diaryNextOpacity: past ? '1' : '0.35', diaryToday: set({diaryView: null}),
+      diaryLive: !past, diaryPast: past && !!pRec, diaryEmpty: past && !pRec,
+      pastFoodFmt: fmt(pRec ? pNum(pRec.kcal) : 0), pastExFmt: fmt(pRec ? pNum(pRec.ex) : 0),
+      pastWater: `${pWater} glasses · ${fmt(pWater * 250)} ml`,
+      pastMacros: [['c','Carbs'],['p','Protein'],['f','Fat']].map(([k, label]) => ({label, val: Math.round(pRec ? pNum(pRec[k]) : 0) + ' g'})),
+      pastHasFoods: !!pFoods, pastNoFoods: !!pRec && !pFoods, pastMeals, pastEx, pastHasEx: pastEx.length > 0
+    };
 
     // weight chart; points are placed by date
     const ws = st.weights.map(w => conv(w.kg)), gw = conv(st.goalWeight);
@@ -1366,7 +1444,7 @@ class Component extends DCLogic {
     return {
       isToday: st.tab === 'today', isDiary: st.tab === 'diary', isProgress: st.tab === 'progress', isGoals: st.tab === 'goals',
       dateLabel: TODAY.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}),
-      wAxis,
+      wAxis, ...diary,
       summaryRing: ringMode, summaryBar: !ringMode, showFormula: this.props.showFormula ?? true,
       goalFmt: fmt(st.goal), eatenFmt: fmt(tot.kcal), burnedFmt: fmt(burned),
       remainingFmt: fmt(Math.abs(remaining)), remainingLabel: over ? 'Over' : 'Remaining',
