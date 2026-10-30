@@ -694,7 +694,7 @@
 </div>
 </sc-if>
 <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
-<div style="position:absolute;left:50%;bottom:100px;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--color-neutral-800);box-shadow:var(--shadow-md);font-size:13px;white-space:nowrap;"><i class="ph-fill ph-check-circle" style="color:var(--color-accent);font-size:16px;"></i>{{ toast }}</div>
+<div style="position:absolute;left:50%;bottom:100px;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--color-neutral-800);box-shadow:var(--shadow-md);font-size:13px;white-space:nowrap;"><i class="{{ toastIcon }}" style="color:var(--color-accent);font-size:16px;"></i>{{ toast }}</div>
 </sc-if>
 
 </div>
@@ -881,7 +881,7 @@ class Component extends DCLogic {
     if (old) { saved.weights = normWeights(saved.weights); try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} }
     this.state = Object.assign(initial(), saved || {}, {
       tab:'today', sheet:null, meal:'Lunch', query:'', sel:null, servings:1,
-      act:0, exMin:30, wDraft:null, toast:null, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null,
+      act:0, exMin:30, wDraft:null, wBad:false, toast:null, toastErr:false, scan:null, scanMsg:'', scanCode:'', restore:null, wConfirm:null, own:null,
       usda:null, usdaDraft:'', usdaErr:'', diaryView:null
     });
     try { this.state.usdaKey = localStorage.getItem(USDA_KEY) || ''; } catch (e) { this.state.usdaKey = ''; }
@@ -1154,12 +1154,19 @@ class Component extends DCLogic {
     this._usdaCache = {};
     this.setState({usdaKey: '', usda: null});
   }
-  flash(msg) {
+  flash(msg, err = false) {
     clearTimeout(this._t);
-    this.setState({toast: msg});
+    this.setState({toast: msg, toastErr: err});
     this._t = setTimeout(() => this.setState({toast:null}), 1800);
   }
-  // Weights stored in kg; stepped in the display unit: 0.5 lb (80–300 lb) or 0.2 kg (36–136 kg), snapped to the step grid
+  // Weights stored in kg; stepped in the display unit: 0.5 lb (50–700 lb) or 0.2 kg (23–318 kg), snapped to the step grid
+  wLimits(lb) {
+    return lb ? {min: 50, max: 700, unit: 'lb'} : {min: 23, max: 318, unit: 'kg'};
+  }
+  weightErr(lb) {
+    const {min, max, unit} = this.wLimits(lb);
+    return `Enter a weight between ${min} and ${max} ${unit}`;
+  }
   stepKg(kg, dir, lb) {
     const K = 2.20462, step = lb ? 0.5 : 0.2;
     const cur = lb ? kg * K : kg;
@@ -1167,13 +1174,18 @@ class Component extends DCLogic {
     return this.clampKg(Math.round((snapped + dir * step) * 10) / 10, lb);
   }
   clampKg(v, lb) {
-    const K = 2.20462, min = lb ? 80 : 36, max = lb ? 300 : 136;
+    const {min, max} = this.wLimits(lb);
     const c = Math.min(max, Math.max(min, v));
-    return lb ? c / K : c;
+    return lb ? c / 2.20462 : c;
   }
+  // Typed weight in the display unit → kg, or null if not a number, over 3 digits before the decimal, or out of range
   parseKg(text, lb) {
-    const v = parseFloat(String(text).replace(',', '.'));
-    return isFinite(v) ? this.clampKg(Math.round(v * 10) / 10, lb) : null;
+    const s = String(text).trim();
+    if (!/^\d{1,3}([.,]\d*)?$/.test(s)) return null;
+    const v = Math.round(parseFloat(s.replace(',', '.')) * 10) / 10;
+    const {min, max} = this.wLimits(lb);
+    if (!(v >= min && v <= max)) return null;
+    return lb ? v / 2.20462 : v;
   }
   stepGoalWeight(dir, lb) {
     this.setState({goalWeight: this.stepKg(this.state.goalWeight, dir, lb), gwText: null});
@@ -1508,7 +1520,7 @@ class Component extends DCLogic {
       resetDay: () => { this.setState({entries: [], exercises: [], water: 0}); this.flash('Diary cleared'); },
       hasSheet: !!st.sheet, closeSheet: () => { this.stopCam(); this.setState({sheet:null, sel:null, scan:null, own:null, usda:null}); },
       openQuick: set({sheet:'quick'}), openExercise: set({sheet:'ex'}),
-      openWeight: set({sheet:'weight', wDraft:null, wText:null}),
+      openWeight: set({sheet:'weight', wDraft:null, wText:null, wBad:false}),
       sheetQuick: st.sheet === 'quick', sheetFood: st.sheet === 'food', sheetEx: st.sheet === 'ex', sheetWeight: st.sheet === 'weight',
       quick: [
         {label:'Food', sub:'Search or scan', icon:'ph ph-fork-knife', onClick: set({sheet:'food', sel:null, query:'', own:null, usda:null})},
@@ -1572,19 +1584,35 @@ class Component extends DCLogic {
       exUp: () => this.setState({exMin: Math.min(240, st.exMin + 5)}),
       addEx: () => { this.setState(s2 => ({exercises: s2.exercises.concat({id: ++uid + Date.now(), name: act.name, min: st.exMin, kcal: Math.round(act.rate * st.exMin)}), sheet:null})); this.flash(`Logged ${st.exMin} min ${act.name.toLowerCase()}`); },
       wDraft: st.wText ?? r1(conv(wBase)),
-      wDown: () => this.setState({wDraft: this.stepKg(wBase, -1, lb), wText: null}),
-      wUp: () => this.setState({wDraft: this.stepKg(wBase, 1, lb), wText: null}),
-      onWInput: e => this.setState({wText: e.target.value}),
-      onWBlur: () => { const k = st.wText == null ? null : this.parseKg(st.wText, lb); this.setState(k == null ? {wText: null} : {wDraft: k, wText: null}); },
+      wDown: () => this.setState({wDraft: this.stepKg(wBase, -1, lb), wText: null, wBad: false}),
+      wUp: () => this.setState({wDraft: this.stepKg(wBase, 1, lb), wText: null, wBad: false}),
+      onWInput: e => this.setState({wText: e.target.value, wBad: false}),
+      onWBlur: () => {
+        if (st.wText == null) return;
+        const k = this.parseKg(st.wText, lb), bad = k == null && !!st.wText.trim();
+        // wBad remembers a rejected entry so a Save tap right after blur doesn't log the old value
+        this.setState(k == null ? {wText: null, wBad: bad} : {wDraft: k, wText: null, wBad: false});
+        if (bad) this.flash(this.weightErr(lb), true);
+      },
       onGwInput: e => this.setState({gwText: e.target.value}),
-      onGwBlur: () => { const k = st.gwText == null ? null : this.parseKg(st.gwText, lb); this.setState(k == null ? {gwText: null} : {goalWeight: k, gwText: null}); },
+      onGwBlur: () => {
+        if (st.gwText == null) return;
+        const k = this.parseKg(st.gwText, lb);
+        this.setState(k == null ? {gwText: null} : {goalWeight: k, gwText: null});
+        if (k == null && st.gwText.trim()) this.flash(this.weightErr(lb), true);
+      },
       onEnterBlur: e => { if (e.key === 'Enter') e.target.blur(); },
       usdaHasKey: !!st.usdaKey, usdaNoKey: !st.usdaKey, usdaKeyTail: (st.usdaKey || '').slice(-4),
       usdaDraft: st.usdaDraft, usdaErr: st.usdaErr,
       onUsdaDraft: e => this.setState({usdaDraft: e.target.value, usdaErr: ''}),
       onUsdaBlur: () => this.saveUsdaKey(), removeUsdaKey: () => this.removeUsdaKey(),
       saveWeight: () => {
-        const typed = st.wText == null ? null : this.parseKg(st.wText, lb);
+        const cur = this.state, text = cur.wText;
+        const typed = text == null || !text.trim() ? null : this.parseKg(text, lb);
+        if (cur.wBad || (typed == null && text != null && text.trim())) {
+          this.setState({wText: null, wBad: true});
+          return this.flash(this.weightErr(lb), true);
+        }
         const kg = typed ?? wBase;
         const replaced = st.weights.some(w => w.date === today);
         // One weigh-in per day: logging again today replaces it
@@ -1592,6 +1620,7 @@ class Component extends DCLogic {
         this.flash(replaced ? 'Weight updated' : 'Weight logged');
       },
       hasToast: !!st.toast, toast: st.toast,
+      toastIcon: st.toastErr ? 'ph-fill ph-warning-circle' : 'ph-fill ph-check-circle',
       fileRef: this.fileRef,
       downloadBackup: () => this.downloadBackup(),
       pickRestore: () => this.fileRef.current && this.fileRef.current.click(),
