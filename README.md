@@ -17,6 +17,7 @@ A simple fitness tracker that runs in your browser and installs on your phone li
 - Delete a single weigh-in or clear the whole weight log (both ask before deleting)
 - Weigh-ins are saved with their date; logging again the same day replaces it
 - A new day starts automatically at midnight; past days are kept in Week history with what you ate
+- Step back through past days in the Diary to see what you logged (view only)
 - Download a backup of your data and restore it on any device (invalid or damaged backup files are rejected without changing your data)
 
 ## Privacy
